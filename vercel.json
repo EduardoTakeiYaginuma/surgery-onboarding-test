@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "BASE_PATH=/ PORT=3000 pnpm --filter @workspace/console-kcl build",
+  "outputDirectory": "artifacts/console-kcl/dist/public",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://SUBSTITUA-PELO-HOST-DO-BACKEND/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
