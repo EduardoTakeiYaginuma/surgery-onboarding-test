@@ -92,17 +92,18 @@ pessoa pela ordem / pelo `name`. Ou seja: **um link por pessoa**.
 
 ### Como o app monta os signatários
 
-Na tela "Aprovar e Enviar" do gerador (`gerador-contrato.tsx`), a lista é:
+Na tela "Aprovar e Enviar" do gerador (`gerador-contrato.tsx`), há dois
+signatários: **Paciente** e **Representante legal** (contrato) / **Médico**
+(termo).
 
-1. **Paciente** (fixo) — nome do cadastro; e-mail pré-preenchido com o do
-   paciente.
-2. **Segundo signatário** (fixo por tipo de documento):
-   - Contrato → **Representante legal da empresa**
-   - Termo → **Médico**
-   - Nome + e-mail são lembrados (localStorage) para não redigitar a cada
-     paciente.
-3. **Signatários adicionais** (sob demanda) — a equipe adiciona/remove quantos
-   quiser, cada um com nome + e-mail.
+> **⚠️ TRAVA DE TESTE ATIVA (`gerador-contrato.tsx`).** Hoje os **NOMES** dos
+> dois signatários são editáveis (para simular paciente/médico), mas os
+> **E-MAILS estão travados** em dois endereços de teste
+> (`eduyaginuma10@gmail.com` e `Mateus.ribeiro@camada.ai`) — não editáveis e sem
+> adicionar/remover signatário. Assim controla-se quem recebe o convite de
+> assinatura sem mudar o fluxo real. **Para produção, reverter** os e-mails
+> travados em `signatariosEnvio` e restaurar os campos de e-mail editáveis.
+> O backend continua em produção (envia e-mail normalmente; sem sandbox).
 
 > **Limitação atual do formulário:** o botão de envio só libera com **nome +
 > e-mail de TODAS as partes** preenchidos. Na prática, pela tela de hoje **não
