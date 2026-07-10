@@ -15,10 +15,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Ambiente de teste: documento em sandbox (sem crédito/validade) e e-mails
-      # suprimidos (entrega por link). Em produção real, remova ou use "false".
-      - key: AUTENTIQUE_SANDBOX
-        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: BASE_PATH

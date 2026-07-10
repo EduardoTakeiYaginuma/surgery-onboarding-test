@@ -26,25 +26,12 @@ A criação de documento aceita o argumento `sandbox: true` no `createDocument`.
 | Listagem | Só com `showSandbox`/`onlySandbox` | Normal |
 | Envia e-mail | **Não é suprimido pelo sandbox** (ver seção 2) | idem |
 
-**Importante:** o sandbox da Autentique controla cobrança/validade, **não**
-controla se o signatário recebe e-mail. Por isso, neste app, o modo sandbox
-também **suprime e-mails** (ver abaixo).
+**Importante:** o sandbox controla cobrança/validade, **não** controla se o
+signatário recebe e-mail. Sandbox e "não enviar e-mail" são coisas separadas.
 
-**Estado atual (IMPLEMENTADO):** controlado pela env var **`AUTENTIQUE_SANDBOX`**:
-
-- `AUTENTIQUE_SANDBOX=true` → cria em sandbox (`sandbox: true` na mutation) **e**
-  força entrega por link em TODOS os signatários, ignorando os e-mails — assim
-  nenhum paciente real é notificado durante os testes.
-- Ausente ou `false` → **produção**: `sandbox: false` e a entrega por e-mail
-  volta a valer (com e-mail → e-mail; sem e-mail → link).
-
-Cada criação registra no log qual modo foi usado (SANDBOX × PRODUÇÃO).
-Implementação em `artifacts/api-server/src/lib/autentique-criar.ts`; comportamento
-travado por testes em `autentique-criar.test.ts`.
-
-- No **Render** (ambiente de teste): `AUTENTIQUE_SANDBOX=true` já vem no
-  `render.yaml`.
-- No **`.env` local**: `AUTENTIQUE_SANDBOX=true`.
+**Estado atual:** o app **não** passa `sandbox`. Ou seja, hoje toda criação vai
+para **produção**. Para ambiente de teste, recomenda-se adicionar `sandbox` por
+env var (ex.: `AUTENTIQUE_SANDBOX=true`) — ver seção 6.
 
 ---
 
@@ -185,12 +172,14 @@ assina igual, mas sem valer juridicamente.
 
 ## 6. Recomendações / próximos passos
 
-Status:
+Nada abaixo está implementado ainda — são sugestões de evolução:
 
-- [x] **Sandbox por env var** — `AUTENTIQUE_SANDBOX` liga/desliga o
-  `sandbox` no `createDocument`. Default seguro = produção (`false`).
-- [x] **Proteção de teste** — com `AUTENTIQUE_SANDBOX=true`, força modo link e
-  ignora e-mails, tornando impossível notificar um paciente real nos testes.
+- [ ] **Sandbox por env var** — ler `AUTENTIQUE_SANDBOX` e passar
+  `sandbox: true/false` no `createDocument`. Default seguro = produção
+  (`false`). Setar `true` no ambiente de teste (`.env` / Vercel).
+- [ ] **Proteção de teste** — quando `AUTENTIQUE_SANDBOX=true`, opcionalmente
+  forçar modo link e ignorar e-mails, para ser impossível notificar um paciente
+  real durante os testes.
 - [ ] **Modo link no frontend** — tornar o e-mail opcional (ou toggle "enviar
   por e-mail" × "gerar link") para viabilizar o `DELIVERY_METHOD_LINK` pela tela.
 - [ ] **Capturar link por signatário** — pedir `name` + `short_link` de cada

@@ -9,23 +9,10 @@
  * Nada aqui roda sem aprovação humana: a rota só chama esta função depois de
  * registrar a aprovação. A chave de API (AUTENTIQUE_API_TOKEN) nunca vai ao
  * frontend nem aos logs.
- *
- * SANDBOX: com `AUTENTIQUE_SANDBOX=true`, o documento é criado em modo teste na
- * Autentique — não consome crédito, não tem validade jurídica e é apagado em
- * poucos dias. Como o `sandbox` da Autentique NÃO suprime e-mail, aqui o modo
- * sandbox também FORÇA entrega por link em todos os signatários (ignora os
- * e-mails), para que nenhum paciente real seja notificado durante os testes.
  */
-
-import { logger } from "./logger";
 
 const ENDPOINT = "https://api.autentique.com.br/v2/graphql";
 const TIMEOUT_MS = 30000;
-
-/** Sandbox ligado via env (default: produção). */
-function isSandbox(): boolean {
-  return process.env.AUTENTIQUE_SANDBOX === "true";
-}
 
 /** Erro do caminho de criação — mensagem segura para a equipe (sem segredos). */
 export class CriarContratoError extends Error {
@@ -53,8 +40,8 @@ interface RespostaCriar {
   errors?: { message?: string }[] | null;
 }
 
-const MUTATION = `mutation CriarDocumento($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!, $sandbox: Boolean!) {
-  createDocument(document: $document, signers: $signers, file: $file, sandbox: $sandbox) {
+const MUTATION = `mutation CriarDocumento($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) {
+  createDocument(document: $document, signers: $signers, file: $file) {
     id
     signatures { link { short_link } }
   }
@@ -85,13 +72,8 @@ export async function criarDocumentoContrato(args: {
     );
   }
 
-  const sandbox = isSandbox();
-
-  // Em sandbox, TODOS os signatários vão por link (e-mail ignorado) para não
-  // notificar paciente real. Em produção, mantém a regra: com e-mail → entrega
-  // por e-mail; sem e-mail → entrega por link.
   const signers = args.signatarios.map((s) => {
-    const email = sandbox ? undefined : s.email?.trim();
+    const email = s.email?.trim();
     return email
       ? { name: s.nome, email, action: "SIGN" }
       : {
@@ -101,20 +83,12 @@ export async function criarDocumentoContrato(args: {
         };
   });
 
-  logger.info(
-    { sandbox, signatarios: signers.length },
-    sandbox
-      ? "Autentique: criando documento em SANDBOX (sem crédito/validade; e-mails suprimidos, entrega por link)"
-      : "Autentique: criando documento em PRODUÇÃO",
-  );
-
   const operations = JSON.stringify({
     query: MUTATION,
     variables: {
       document: { name: args.nomeDocumento },
       signers,
       file: null,
-      sandbox,
     },
   });
 
