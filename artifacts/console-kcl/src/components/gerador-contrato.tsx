@@ -1486,6 +1486,9 @@ export function GeradorDocumento({
   const [resetNonce, setResetNonce] = useState(0);
   const [aprovadoPor, setAprovadoPor] = useState<string>("");
   const [emailSignatario, setEmailSignatario] = useState<string>("");
+  // Nome editável do 1º signatário (paciente) — permite simular clientes nos
+  // testes. O e-mail é travado (ver signatariosEnvio).
+  const [nomeSignatario1, setNomeSignatario1] = useState<string>("");
   const [confirmarEnvio, setConfirmarEnvio] = useState(false);
   // Segundo signatário: contrato → representante legal da empresa; termo → médico.
   // Campos preenchidos antes do envio; o último valor é lembrado (localStorage)
@@ -1609,6 +1612,20 @@ export function GeradorDocumento({
       setEmailSignatario(pacienteEmail);
     }
   }, [selecionada, pacienteEmail]);
+
+  // Pré-preenche o NOME do 1º signatário (paciente) com o nome do cadastro ao
+  // abrir o rascunho. Editável depois (para simular clientes nos testes).
+  const nomePrefillId = useRef<number | null>(null);
+  useEffect(() => {
+    if (
+      selecionada &&
+      pacienteNome &&
+      nomePrefillId.current !== selecionada.id
+    ) {
+      nomePrefillId.current = selecionada.id;
+      setNomeSignatario1(pacienteNome);
+    }
+  }, [selecionada, pacienteNome]);
 
   // Default do nome do médico (2º signatário do TERMO) a partir do cadastro,
   // quando o campo ainda não foi preenchido/lembrado.
@@ -1946,15 +1963,13 @@ export function GeradorDocumento({
     }
   }
 
-  // Signatários montados a partir dos campos do formulário (por tipo de doc).
+  // TRAVA DE TESTE: os NOMES são editáveis (para simular paciente/médico), mas
+  // os E-MAILS são FIXOS nesses dois endereços — só eles recebem o convite de
+  // assinatura, controlando quem é notificado nos testes. O fluxo real de
+  // e-mail/assinatura continua igual. REVERTER os e-mails para produção real.
   const signatariosEnvio = [
-    { papel: "paciente", nome: pacienteNome, email: emailSignatario.trim() },
-    { papel: papelSegundo, nome: segundoNome.trim(), email: segundoEmail.trim() },
-    ...signatariosExtra.map((s) => ({
-      papel: "adicional",
-      nome: s.nome.trim(),
-      email: s.email.trim(),
-    })),
+    { papel: "paciente", nome: nomeSignatario1.trim(), email: "eduyaginuma10@gmail.com" },
+    { papel: papelSegundo, nome: segundoNome.trim(), email: "Mateus.ribeiro@camada.ai" },
   ];
   // Envio liberado só com nome + e-mail de TODAS as partes (inclui adicionais).
   const signatariosCompletos = signatariosEnvio.every(
@@ -2691,28 +2706,39 @@ export function GeradorDocumento({
                         />
                       </div>
 
-                      {/* Signatários do documento (assinam na Autentique). Contrato:
-                          paciente + representante legal. Termo: paciente + médico. */}
+                      {/* TRAVA DE TESTE: nome editável (simula paciente/médico),
+                          e-mail FIXO nos dois endereços de teste. Sem adicionar
+                          nem remover signatário. REVERTER e-mails para produção. */}
                       <div className="border-t border-border/40 pt-3 space-y-3">
                         <p className="font-expanded text-[9px] tracking-widest uppercase text-muted-foreground">
-                          Signatários
+                          Signatários (e-mail travado · teste)
                         </p>
 
-                        {/* 1) Paciente */}
+                        {/* 1) Paciente — nome editável, e-mail travado */}
                         <div className="space-y-1.5">
                           <label className="text-[11px] font-light text-muted-foreground/80">
-                            Paciente · <span className="text-foreground">{pacienteNome}</span>
+                            Paciente
                           </label>
-                          <Input
-                            type="email"
-                            value={emailSignatario}
-                            onChange={(e) => setEmailSignatario(e.target.value)}
-                            placeholder="E-mail do paciente"
-                            className="rounded-none h-11 bg-background border-transparent"
-                          />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <Input
+                              value={nomeSignatario1}
+                              onChange={(e) => setNomeSignatario1(e.target.value)}
+                              placeholder="Nome (simulação)"
+                              className="rounded-none h-11 bg-background border-transparent"
+                            />
+                            <Input
+                              type="email"
+                              value="eduyaginuma10@gmail.com"
+                              readOnly
+                              disabled
+                              aria-label="E-mail travado do signatário 1"
+                              className="rounded-none h-11 bg-muted/40 border-transparent text-muted-foreground cursor-not-allowed"
+                            />
+                          </div>
                         </div>
 
-                        {/* 2) Representante legal (contrato) ou Médico (termo) */}
+                        {/* 2) Representante legal (contrato) ou Médico (termo) —
+                            nome editável, e-mail travado */}
                         <div className="space-y-1.5">
                           <label className="text-[11px] font-light text-muted-foreground/80">
                             {rotuloSegundo}
@@ -2721,91 +2747,24 @@ export function GeradorDocumento({
                             <Input
                               value={segundoNome}
                               onChange={(e) => setSegundoNome(e.target.value)}
-                              placeholder="Nome"
+                              placeholder="Nome (simulação)"
                               className="rounded-none h-11 bg-background border-transparent"
                             />
                             <Input
                               type="email"
-                              value={segundoEmail}
-                              onChange={(e) => setSegundoEmail(e.target.value)}
-                              placeholder="E-mail"
-                              className="rounded-none h-11 bg-background border-transparent"
+                              value="Mateus.ribeiro@camada.ai"
+                              readOnly
+                              disabled
+                              aria-label="E-mail travado do signatário 2"
+                              className="rounded-none h-11 bg-muted/40 border-transparent text-muted-foreground cursor-not-allowed"
                             />
                           </div>
                         </div>
 
-                        {/* 3+) Signatários adicionais (opcionais). Cada um assina
-                            por e-mail, como os demais. */}
-                        {signatariosExtra.map((sig, i) => (
-                          <div key={i} className="space-y-1.5">
-                            <label className="text-[11px] font-light text-muted-foreground/80">
-                              Signatário adicional {i + 1}
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
-                                <Input
-                                  value={sig.nome}
-                                  onChange={(e) =>
-                                    setSignatariosExtra((atual) =>
-                                      atual.map((s, j) =>
-                                        j === i ? { ...s, nome: e.target.value } : s,
-                                      ),
-                                    )
-                                  }
-                                  placeholder="Nome"
-                                  className="rounded-none h-11 bg-background border-transparent"
-                                />
-                                <Input
-                                  type="email"
-                                  value={sig.email}
-                                  onChange={(e) =>
-                                    setSignatariosExtra((atual) =>
-                                      atual.map((s, j) =>
-                                        j === i ? { ...s, email: e.target.value } : s,
-                                      ),
-                                    )
-                                  }
-                                  placeholder="E-mail"
-                                  className="rounded-none h-11 bg-background border-transparent"
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                  setSignatariosExtra((atual) =>
-                                    atual.filter((_, j) => j !== i),
-                                  )
-                                }
-                                aria-label="Remover signatário"
-                                className="rounded-none h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setSignatariosExtra((atual) => [
-                              ...atual,
-                              { nome: "", email: "" },
-                            ])
-                          }
-                          className="rounded-none h-9 gap-1.5 text-[11px] font-light text-muted-foreground hover:text-foreground px-0"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Adicionar signatário
-                        </Button>
-
                         <p className="text-[10px] text-muted-foreground/60 font-light leading-relaxed">
-                          Cada signatário recebe o documento por e-mail para assinar.
-                          Não use o e-mail da conta Autentique (não recebe o convite).
+                          Modo teste: os nomes podem ser alterados para simular as
+                          partes, mas os e-mails estão travados — só estes dois
+                          endereços recebem o convite de assinatura.
                         </p>
                       </div>
                     </div>
