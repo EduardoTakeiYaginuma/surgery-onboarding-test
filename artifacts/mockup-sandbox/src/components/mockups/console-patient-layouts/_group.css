@@ -1,0 +1,63 @@
+/*
+ * Console do Pré-Op · KCL — brand tokens for the patient-detail layout
+ * exploration. Copied verbatim from artifacts/console-kcl/src/index.css so the
+ * mockups render in the real Console palette (Linho light + Meia-noite dark).
+ * Every variant in this folder imports this file. Fonts are loaded here; in the
+ * components use arbitrary font utilities (font-['Spectral'] etc.) because the
+ * sandbox Tailwind theme does not define font-serif / font-expanded.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Archivo+Expanded:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Spectral:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
+
+/* LIGHT — Linho & Meia-noite (the Console in Claro mode, matches the screenshot) */
+:root {
+  --background: 42 36% 88%;
+  --foreground: 215 61% 10%;
+  --border: 39 46% 61%;
+  --input: 39 46% 61%;
+  --ring: 39 46% 61%;
+
+  --card: 46 31% 93%;
+  --card-foreground: 215 61% 10%;
+
+  --popover: 46 31% 93%;
+  --popover-foreground: 215 61% 10%;
+
+  --primary: 215 61% 10%;
+  --primary-foreground: 46 31% 93%;
+  --secondary: 46 31% 93%;
+  --secondary-foreground: 215 61% 10%;
+  --muted: 42 36% 80%;
+  --muted-foreground: 215 63% 18%;
+  --accent: 39 46% 37%;
+  --accent-foreground: 215 61% 10%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --radius: 0rem;
+}
+
+/* DARK — Meia-noite & Marinho-profundo (the canonical Console identity) */
+.dark {
+  --background: 215 61% 10%;
+  --foreground: 46 31% 93%;
+  --border: 215 63% 18%;
+  --input: 215 63% 18%;
+  --ring: 39 46% 61%;
+
+  --card: 215 63% 18%;
+  --card-foreground: 46 31% 93%;
+
+  --popover: 215 63% 18%;
+  --popover-foreground: 46 31% 93%;
+
+  --primary: 46 31% 93%;
+  --primary-foreground: 215 61% 10%;
+  --secondary: 215 63% 25%;
+  --secondary-foreground: 46 31% 93%;
+  --muted: 215 63% 18%;
+  --muted-foreground: 215 22% 65%;
+  --accent: 39 46% 61%;
+  --accent-foreground: 215 61% 10%;
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 46 31% 93%;
+}

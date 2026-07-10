@@ -1,0 +1,374 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Archivo+Expanded:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Spectral:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+  --font-expanded: var(--app-font-expanded);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  /* Linho & Meia-noite (Light Mode for Patient) */
+  --background: 42 36% 88%;
+  --foreground: 215 61% 10%;
+  --border: 39 46% 61%; /* champanhe for thin lines */
+  --input: 39 46% 61%;
+  --ring: 39 46% 61%;
+
+  --card: 46 31% 93%; /* Marfim */
+  --card-foreground: 215 61% 10%;
+  --card-border: 39 46% 61%;
+
+  --popover: 46 31% 93%;
+  --popover-foreground: 215 61% 10%;
+  --popover-border: 39 46% 61%;
+
+  --primary: 215 61% 10%;
+  --primary-foreground: 46 31% 93%;
+  --secondary: 46 31% 93%;
+  --secondary-foreground: 215 61% 10%;
+  --muted: 42 36% 80%;
+  --muted-foreground: 215 63% 18%;
+  --accent: 39 46% 37%; /* #8A6B33 — champanhe escurecido para texto/acento sobre claro */
+  --accent-foreground: 215 61% 10%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --app-font-sans: 'Archivo', sans-serif;
+  --app-font-serif: 'Spectral', serif;
+  --app-font-mono: 'IBM Plex Mono', monospace;
+  --app-font-expanded: 'Archivo Expanded', 'Archivo', sans-serif;
+  
+  --radius: 0rem;
+}
+
+.dark {
+  /* Meia-noite & Marinho-profundo (Dark Mode for Console) */
+  --background: 215 61% 10%;
+  --foreground: 46 31% 93%; /* Marfim */
+  --border: 215 63% 18%;
+  --input: 215 63% 18%;
+  --ring: 39 46% 61%; /* Champanhe */
+
+  --card: 215 63% 18%; /* Marinho-profundo */
+  --card-foreground: 46 31% 93%;
+  --card-border: 215 63% 25%;
+
+  --popover: 215 63% 18%;
+  --popover-foreground: 46 31% 93%;
+  --popover-border: 215 63% 25%;
+
+  --primary: 46 31% 93%; /* Marfim — botões primários nunca champanhe (só em fio) */
+  --primary-foreground: 215 61% 10%; /* Meia-noite */
+  --secondary: 215 63% 25%;
+  --secondary-foreground: 46 31% 93%;
+  --muted: 215 63% 18%;
+  --muted-foreground: 215 22% 65%; /* Brisa */
+  --accent: 39 46% 61%;
+  --accent-foreground: 215 61% 10%;
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 46 31% 93%;
+}
+
+/*
+ * Public patient page (Dra. Karla's editorial brand) — its own themeable token
+ * set, fully independent of the Console's Meia-noite identity. Light is the
+ * default editorial register (Linho/Marfim); dark is a warm editorial register
+ * (NOT the Console's navy Meia-noite). Champagne stays "só em fio". Zero Camada.
+ * Roles: bg = page, surface = elevated card, text = ink, accent = champagne,
+ * strong = high-contrast fill (active/checked), on-strong = text over a fill.
+ */
+.paciente {
+  --pp-bg: #EDE5D3;
+  --pp-surface: #F4F1E8;
+  --pp-text: #0A1729;
+  --pp-accent: #8A6B33;
+  --pp-strong: #0A1729;
+  --pp-on-strong: #EDE5D3;
+}
+
+.paciente.paciente-dark {
+  --pp-bg: #1C1714;
+  --pp-surface: #261E18;
+  --pp-text: #ECE3D2;
+  --pp-accent: #C9A96E;
+  --pp-strong: #ECE3D2;
+  --pp-on-strong: #1C1714;
+}
+
+/*
+ * Dark editorial slab (the cover + footer of the patient page). It must read as
+ * a dark band in BOTH patient registers, so it can't simply consume --pp-strong
+ * (that flips light in the dark register). Light register → the Meia-noite ink
+ * fill with Linho text (--pp-strong / --pp-on-strong). Dark register → the
+ * page's own warm elevated surface with the page ink (--pp-surface / --pp-text).
+ * Only existing tokens are consumed; no new colors, no --pp-* redefinition.
+ */
+.pp-slab {
+  background-color: var(--pp-strong);
+  color: var(--pp-on-strong);
+}
+
+.paciente-dark .pp-slab {
+  background-color: var(--pp-surface);
+  color: var(--pp-text);
+}
+
+/*
+ * WYSIWYG legal-document editor (contracts / TCLE). The canonical format is the
+ * same HTML used by generation, AI review and the PDF, so these styles only need
+ * to make the structure legible inside the Console (Camada) chrome — they are
+ * not what the PDF renders. Tokens only (--foreground/--accent/--border), so the
+ * editor reads correctly in both the light and dark Console registers.
+ */
+.editor-doc {
+  color: hsl(var(--foreground));
+  font-family: var(--font-serif);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.editor-doc:focus {
+  outline: none;
+}
+.editor-doc p {
+  margin: 0 0 0.75em;
+}
+.editor-doc h1,
+.editor-doc h2,
+.editor-doc h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.1em 0 0.5em;
+}
+.editor-doc h1 {
+  font-size: 1.35rem;
+}
+.editor-doc h2 {
+  font-size: 1.15rem;
+}
+.editor-doc h3 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.editor-doc strong {
+  font-weight: 600;
+}
+.editor-doc ul,
+.editor-doc ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.4em;
+}
+.editor-doc ul {
+  list-style: disc;
+}
+.editor-doc ol {
+  list-style: decimal;
+}
+.editor-doc li {
+  margin: 0.2em 0;
+}
+.editor-doc li > p {
+  margin: 0;
+}
+/* Placeholder-free empty paragraphs still need height to be clickable. */
+.editor-doc p:empty::after {
+  content: "\00a0";
+}
+/*
+ * Realce visual das `{{variáveis}}` — campos preenchidos na geração. É só uma
+ * decoração inline (não muda o texto/HTML), sinalizando à equipe quais trechos
+ * serão substituídos pelos dados da paciente.
+ */
+.editor-doc .editor-variavel {
+  background: hsl(var(--accent) / 0.16);
+  color: hsl(var(--accent));
+  border-radius: 0.25rem;
+  padding: 0.05em 0.3em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  font-weight: 500;
+  white-space: nowrap;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/*
+ * Regiões tipadas do motor de cláusulas (variante / opcional). O wrapper
+ * `.doc-regiao` (nó TipTap RegiaoDoc) preserva os `<div data-regiao>` e é pintado
+ * aqui por tipo — só destaque visual + rótulo; a escolha vive no painel de
+ * Decisões. Numerais de cláusula (`data-num`) e referências cruzadas (`data-ref`)
+ * ganham a face mono/champanhe do numeral medido.
+ */
+.editor-doc [data-regiao] {
+  position: relative;
+  margin: 1.1em 0;
+  padding: 0.9em 1em 0.5em;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 0.25rem;
+}
+.editor-doc [data-regiao]::before {
+  content: attr(data-rotulo);
+  position: absolute;
+  top: -0.62em;
+  left: 0.75em;
+  padding: 0.05em 0.5em;
+  background: hsl(var(--background));
+  font-family: var(--font-expanded, var(--font-sans));
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+/* Variante: escolher 1 de N (azul-ardósia, distinto do champanhe/verde). */
+.editor-doc [data-regiao="variante"] {
+  border-color: hsl(212 45% 55% / 0.6);
+  background: hsl(212 45% 55% / 0.05);
+}
+.editor-doc [data-regiao="variante"]::before {
+  color: hsl(212 50% 46%);
+}
+/* Opcional incluído: verde-sálvia. */
+.editor-doc [data-regiao="opcional"] {
+  border-color: hsl(158 34% 40% / 0.6);
+  background: hsl(158 34% 40% / 0.06);
+}
+.editor-doc [data-regiao="opcional"]::before {
+  color: hsl(158 34% 38%);
+}
+/* Marca "ajustado à mão" (o operador trocou a inferência). */
+.editor-doc [data-regiao][data-editado="true"] {
+  border-style: dashed;
+}
+/* Numeral de cláusula e referência cruzada — face medida (mono/champanhe). */
+.editor-doc [data-num],
+.editor-doc [data-ref] {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
+  color: hsl(var(--accent));
+  font-size: 0.92em;
+}
+/*
+ * Valores preenchidos na PRÉVIA estática (`<span data-var="chave">`). Sublinhado
+ * discreto por padrão (sinaliza "vem de um campo"); ao focar o campo na ficha, o
+ * trecho correspondente recebe `.var-foco` — realce champanhe + pulso — e a
+ * prévia rola até ele. O editor (TipTap) descarta esses spans, então isto só
+ * afeta a prévia; o documento gerado continua com o texto limpo.
+ */
+.editor-doc [data-var] {
+  border-bottom: 1px dotted hsl(var(--accent) / 0.5);
+}
+.editor-doc [data-var].var-foco {
+  background: hsl(var(--accent) / 0.18);
+  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.18);
+  border-radius: 0.2rem;
+  border-bottom-color: transparent;
+  animation: var-foco-pulse 1.6s ease;
+}
+@keyframes var-foco-pulse {
+  0% {
+    background: hsl(var(--accent) / 0.38);
+    box-shadow: 0 0 0 4px hsl(var(--accent) / 0.28);
+  }
+  100% {
+    background: hsl(var(--accent) / 0.18);
+    box-shadow: 0 0 0 3px hsl(var(--accent) / 0.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-doc [data-var].var-foco {
+    animation: none;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Indeterminate slide for the route-loading champagne fio (Suspense fallback). */
+@keyframes route-loading-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+.route-loading-bar {
+  animation: route-loading-slide 1.1s ease-in-out infinite;
+}
+
+/* Scrollbar sempre visivel nas colunas roláveis (ex.: seletor de horário),
+   já que no macOS a barra fica oculta por padrão e o conteúdo parece truncado. */
+.scroll-visivel {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scroll-visivel::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-visivel::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}
+.scroll-visivel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-loading-bar {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
+}

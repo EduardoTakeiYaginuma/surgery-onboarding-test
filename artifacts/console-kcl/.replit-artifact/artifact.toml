@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Console do Pré-Op · KCL"
+version = "1.0.0"
+id = "artifacts/console-kcl"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24656
+
+[services.development]
+run = "pnpm --filter @workspace/console-kcl run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/console-kcl", "run", "build" ]
+publicDir = "artifacts/console-kcl/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24656"
+BASE_PATH = "/"

@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "Console KCL · Móvel"
+version = "1.0.0"
+id = "artifacts/mobile-kcl"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile/" ]
+localPort = 21610
+
+[services.development]
+run = "pnpm --filter @workspace/mobile-kcl run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mobile-kcl", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/mobile-kcl", "run", "serve" ]
+
+[services.env]
+PORT = "21610"
+BASE_PATH = "/mobile/"

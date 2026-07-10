@@ -1,0 +1,4472 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: pacientes
+    description: Gestão de pacientes (Console da Thalita)
+  - name: vendedoras
+    description: Lista fixa de vendedoras responsáveis
+  - name: publico
+    description: Página pública da paciente (acesso por token)
+  - name: conteudo
+    description: Conteúdo editável da página pública (padrão global e override por paciente)
+  - name: documentos
+    description: PDFs (pedidos médicos etc.) anexados à paciente
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /pacientes:
+    get:
+      operationId: listarPacientes
+      tags: [pacientes]
+      summary: Listar pacientes
+      description: Lista todos os pacientes para o Console.
+      responses:
+        "200":
+          description: Lista de pacientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Paciente"
+    post:
+      operationId: criarPaciente
+      tags: [pacientes]
+      summary: Criar paciente
+      description: Cria um novo paciente no estágio Fechamento e gera o token público.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PacienteCreate"
+      responses:
+        "201":
+          description: Paciente criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PacienteDetalhe"
+        "409":
+          description: >-
+            CPF em conflito. Quando `codigo` é `cpf_arquivado`, existe um
+            cadastro arquivado com o mesmo CPF e o cliente pode restaurá-lo ou
+            reenviar com `permitirCpfArquivado: true`. Caso contrário o CPF já
+            pertence a um cadastro ativo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConflitoCpf"
+  /pacientes/resumo:
+    get:
+      operationId: resumoPacientes
+      tags: [pacientes]
+      summary: Resumo do Console
+      description: Contagens por estágio e total de pacientes para o painel do Console.
+      responses:
+        "200":
+          description: Resumo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumoConsole"
+  /config:
+    get:
+      operationId: obterConfig
+      tags: [pacientes]
+      summary: Configuração operacional
+      description: Lista de hospitais e equipes de anestesia para os seletores, mais o registro padrão das páginas de paciente.
+      responses:
+        "200":
+          description: Configuração
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigOperacional"
+  /config/tema-padrao:
+    put:
+      operationId: definirTemaPadrao
+      tags: [pacientes]
+      summary: Definir o registro padrão das páginas de paciente
+      description: Define o registro (claro/escuro) com que novas páginas de paciente abrem no primeiro acesso. Não altera a escolha já feita por uma paciente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemaPadrao"
+      responses:
+        "200":
+          description: Registro padrão salvo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemaPadrao"
+  /config/notificacoes:
+    get:
+      operationId: obterConfigNotificacao
+      tags: [pacientes]
+      summary: Configuração dos avisos de contrato à equipe
+      description: Destino do aviso e o liga/desliga (silenciada) que a equipe definiu no Console.
+      responses:
+        "200":
+          description: Configuração de avisos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigNotificacao"
+    put:
+      operationId: definirConfigNotificacao
+      tags: [pacientes]
+      summary: Definir os avisos de contrato à equipe
+      description: Define o destino do aviso (webhook) e liga/desliga os avisos, sem mexer em secrets. Silenciar não perde o destino salvo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigNotificacao"
+      responses:
+        "200":
+          description: Configuração de avisos salva
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigNotificacao"
+        "400":
+          description: Destino inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /config/notificacoes/testar:
+    post:
+      operationId: testarConfigNotificacao
+      tags: [pacientes]
+      summary: Enviar um aviso de teste ao destino
+      description: >-
+        Dispara uma mensagem de teste para o destino, confirmando na hora se ele
+        funciona. Usa o destino recém-digitado (webhookUrl no corpo), quando
+        informado; senão cai no destino salvo. Ignora o liga/desliga: o teste
+        vale mesmo com os avisos pausados.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestarNotificacaoBody"
+      responses:
+        "200":
+          description: Resultado do envio de teste
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultadoTesteNotificacao"
+        "400":
+          description: Destino inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /config/contrato:
+    get:
+      operationId: obterConfigContrato
+      tags: [pacientes]
+      summary: Configuração do prazo de assinatura do contrato
+      description: Quantos dias antes da cirurgia o contrato deve estar assinado (padrão da clínica).
+      responses:
+        "200":
+          description: Configuração do prazo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigContrato"
+    put:
+      operationId: definirConfigContrato
+      tags: [pacientes]
+      summary: Definir o prazo padrão de assinatura do contrato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigContrato"
+      responses:
+        "200":
+          description: Configuração do prazo salva
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigContrato"
+        "400":
+          description: Valor inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /config/documento-prompts:
+    get:
+      operationId: obterConfigPrompts
+      tags: [pacientes]
+      summary: Prompts da geração de documentos por IA
+      description: Devolve os prompts de contrato, termo e refino (texto efetivo + padrão de código + tokens).
+      responses:
+        "200":
+          description: Prompts configurados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigPrompts"
+    put:
+      operationId: definirConfigPrompts
+      tags: [pacientes]
+      summary: Editar os prompts da geração por IA
+      description: Salva o texto de um ou mais prompts. Em cada campo, null restaura o padrão e ausente não mexe.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigPromptsInput"
+      responses:
+        "200":
+          description: Prompts salvos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigPrompts"
+        "400":
+          description: Prompt inválido (texto curto ou token obrigatório ausente)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contratos/alertas/processar:
+    post:
+      operationId: processarAlertasPrazo
+      tags: [pacientes]
+      summary: Processar alertas de prazo do contrato
+      description: Varre os pacientes ativos e avisa a equipe quando o prazo de assinatura venceu e o contrato não foi assinado. Dedup por paciente. Chamado pelo Console ao carregar a home.
+      responses:
+        "200":
+          description: Resultado da varredura
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avisados:
+                    type: integer
+                required:
+                  - avisados
+  /contrato-modelos:
+    get:
+      operationId: listarContratoModelos
+      tags: [contratos]
+      summary: Listar modelos-base de contrato
+      description: Lista os modelos-base por (tipo, procedimento). Semeia os padrões faltantes (idempotente, não sobrescreve). Filtra por `tipo` quando informado.
+      parameters:
+        - name: tipo
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/DocumentoTipo"
+      responses:
+        "200":
+          description: Lista de modelos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContratoModelo"
+    post:
+      operationId: criarContratoModelo
+      tags: [contratos]
+      summary: Criar modelo-base de contrato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContratoModeloCreate"
+      responses:
+        "201":
+          description: Modelo criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoModelo"
+        "400":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "409":
+          description: Já existe um modelo para este procedimento
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contrato-modelos/variaveis:
+    get:
+      operationId: listarVariaveisContrato
+      tags: [contratos]
+      summary: Catálogo de variáveis dos modelos de contrato
+      description: Variáveis {{...}} disponíveis para usar no corpo dos modelos.
+      responses:
+        "200":
+          description: Catálogo de variáveis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VariavelContrato"
+  /contrato-modelos/importar:
+    post:
+      operationId: importarContratoModelo
+      tags: [contratos]
+      summary: Importar modelo da clínica (Word/PDF) → HTML
+      description: >-
+        Converte um arquivo Word (.docx) ou PDF — já enviado ao armazenamento via
+        URL pré-assinada — no corpo HTML de um modelo-base. Retorna o HTML e um
+        título sugerido a partir do nome do arquivo; a equipe revisa, insere as
+        {{variáveis}}, define o procedimento e salva como qualquer outro
+        modelo-base. PDFs escaneados (sem texto) são recusados com 422.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContratoModeloImportarInput"
+      responses:
+        "200":
+          description: Arquivo convertido em HTML
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoModeloImportado"
+        "400":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "422":
+          description: Arquivo não suportado, vazio ou ilegível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contrato-modelos/{id}:
+    put:
+      operationId: atualizarContratoModelo
+      tags: [contratos]
+      summary: Atualizar modelo-base de contrato
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContratoModeloUpdate"
+      responses:
+        "200":
+          description: Modelo atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoModelo"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    delete:
+      operationId: removerContratoModelo
+      tags: [contratos]
+      summary: Remover modelo-base de contrato
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removido
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contrato-modelos/{id}/restaurar-padrao:
+    post:
+      operationId: restaurarContratoModeloPadrao
+      tags: [contratos]
+      summary: Restaurar modelo ao texto de fábrica
+      description: >-
+        Restaura o corpo/título do modelo ao texto de fábrica atual, deixando-o
+        NÃO vigente (a equipe revisa e marca como vigente antes de qualquer
+        envio). Se o modelo está vigente ou foi editado, exige `confirmar=true`;
+        caso contrário responde 409 para evitar sobrescrever o trabalho da
+        equipe sem confirmação explícita.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContratoModeloRestaurarPadrao"
+      responses:
+        "200":
+          description: Modelo restaurado ao texto de fábrica (não vigente)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoModelo"
+        "404":
+          description: Modelo não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "409":
+          description: Restauração exige confirmação (modelo vigente ou editado)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "422":
+          description: Procedimento criado manualmente, sem texto de fábrica
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/contratos:
+    get:
+      operationId: listarContratosGeracao
+      tags: [contratos]
+      summary: Listar gerações de documento da paciente
+      description: Lista todas as gerações da paciente (contrato e termo). Cada item carrega `tipo`; o cliente separa por tipo.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Gerações de contrato (mais recente primeiro)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContratoGeracao"
+        "404":
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/documento-contexto:
+    get:
+      operationId: obterDocumentoContexto
+      tags: [contratos]
+      summary: Ficha de inputs do documento (dados que preenchem o modelo)
+      description: Retorna os dados da paciente já resolvidos e formatados (exatamente como entram no texto), agrupados em Paciente, Procedimento e Valores. O grupo de Valores só se aplica ao contrato; o cliente o oculta para o termo.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ficha de inputs agrupada
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocumentoContextoGrupo"
+        "404":
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/contratos/previa:
+    post:
+      operationId: preverContrato
+      tags: [contratos]
+      summary: Prévia ao vivo do documento (sem gerar/persistir)
+      description: >-
+        Resolve o modelo-base vigente para a paciente e devolve o corpo pronto —
+        para a prévia antes de gerar o rascunho. Aceita OVERRIDES (os valores que
+        a equipe está editando na ficha, ainda não salvos) que são aplicados por
+        cima dos dados salvos apenas nesta resolução, sem persistir nada.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviaContratoInput"
+      responses:
+        "200":
+          description: Prévia resolvida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviaContrato"
+        "400":
+          description: Não há modelo-base vigente para o tipo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/contratos/revisar-previa:
+    post:
+      operationId: revisarPreviaContrato
+      tags: [contratos]
+      summary: Feedback de IA sobre o texto ANTES de gerar (opcional, não bloqueia)
+      description: >-
+        Envia o corpo em edição para a revisão jurídica assistida por IA e devolve
+        o relatório. É apoio à decisão — não persiste nada e nunca impede a geração.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevisarPreviaInput"
+      responses:
+        "200":
+          description: Relatório da revisão
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelatorioRevisao"
+        "404":
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "502":
+          description: A revisão por IA falhou (tente novamente)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/contratos/gerar:
+    post:
+      operationId: gerarContrato
+      tags: [contratos]
+      summary: Gerar um rascunho de contrato para a paciente
+      description: Preenche o modelo-base vigente com os dados da paciente e cria uma geração em rascunho. Não envia nada à Autentique.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GerarContratoInput"
+      responses:
+        "201":
+          description: Rascunho criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "400":
+          description: Dados inválidos ou modelo não vigente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Paciente ou modelo não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/contratos/upload:
+    post:
+      operationId: uploadContrato
+      tags: [contratos]
+      summary: Registrar um contrato PRONTO enviado por fora (PDF)
+      description: >-
+        Registra um PDF já enviado ao armazenamento (via URL pré-assinada) como
+        uma geração de contrato em rascunho, sem passar pela pré-geração. O PDF é
+        a fonte da verdade — segue direto para aprovação e envio à Autentique.
+        Só aceita PDF e impõe um limite de tamanho.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadContratoInput"
+      responses:
+        "201":
+          description: Rascunho de upload criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "400":
+          description: Arquivo inválido (não é PDF, muito grande ou caminho inválido)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/contratos/gerar-ia:
+    post:
+      operationId: gerarIaDocumento
+      tags: [contratos]
+      summary: Gerar um documento (contrato/termo) redigido por IA
+      description: >-
+        Redige um documento a partir do formulário, seguindo o padrão dos
+        documentos-exemplo da clínica (ChatGPT). Cria uma geração em rascunho com o
+        corpo HTML devolvido pela IA. Não envia nada à Autentique.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GerarIaInput"
+      responses:
+        "201":
+          description: Rascunho redigido por IA criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "400":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Paciente não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "502":
+          description: Falha na geração por IA
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contratos/{id}/refinar-ia:
+    post:
+      operationId: refinarIaDocumento
+      tags: [contratos]
+      summary: Refinar por IA um documento gerado (aplicar uma alteração)
+      description: >-
+        Aplica uma instrução de alteração ao corpo de uma geração redigida por IA
+        (origem "ia") ainda em rascunho, preservando o restante do documento.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefinarIaInput"
+      responses:
+        "200":
+          description: Documento refinado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "400":
+          description: Geração não é de IA, não está em rascunho, ou instrução inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "502":
+          description: Falha no refino por IA
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contratos/{id}:
+    put:
+      operationId: editarContratoGeracao
+      tags: [contratos]
+      summary: Editar o texto de um rascunho de contrato
+      description: Só permitido enquanto a geração está em rascunho.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditarContratoBody"
+      responses:
+        "200":
+          description: Rascunho atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "400":
+          description: Geração não está mais editável
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contratos/{id}/decisoes:
+    put:
+      operationId: definirDecisoesContrato
+      tags: [contratos]
+      summary: Confirmar/ajustar as decisões do motor de cláusulas
+      description: >-
+        Aplica as escolhas do operador (variantes/opcionais/gênero) e REGERA o
+        corpo do rascunho de forma determinística a partir do modelo-base.
+        Descarta ajustes manuais de texto — use antes de refinar o texto à mão.
+        Só permitido enquanto a geração está em rascunho.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DefinirDecisoesBody"
+      responses:
+        "200":
+          description: Rascunho regerado com as decisões aplicadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "400":
+          description: Geração não está mais editável
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contratos/{id}/revisar:
+    post:
+      operationId: revisarContratoGeracao
+      tags: [contratos]
+      summary: Rodar a revisão de IA sobre o rascunho
+      description: Revisão jurídica assistida por IA (3 frentes). Apoio à decisão — nunca aprova. Falha de IA não corrompe a geração.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Relatório salvo na geração
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "502":
+          description: A revisão por IA falhou (tente novamente)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contratos/{id}/aprovar-e-enviar:
+    post:
+      operationId: aprovarEEnviarContrato
+      tags: [contratos]
+      summary: Aprovar (humano) e enviar à Autentique
+      description: Registra a aprovação humana (quem/quando), gera o PDF e cria o documento na Autentique, vinculando-o à paciente. Em falha de envio, preserva a aprovação e não toca no contrato da paciente.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AprovarContratoBody"
+      responses:
+        "200":
+          description: Contrato criado na Autentique e vinculado à paciente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContratoGeracao"
+        "400":
+          description: Dados inválidos ou geração em estado inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "502":
+          description: Falha ao criar o documento na Autentique (aprovação preservada)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /contratos/{id}/pdf:
+    get:
+      operationId: baixarContratoPdf
+      tags: [contratos]
+      summary: Baixar o PDF do documento (rascunho ou aprovado)
+      description: Gera o PDF a partir do título e do corpo SALVOS da geração (mesmo gerador usado no envio à Autentique). Disponível em qualquer status para a equipe baixar uma cópia. Reflete a versão salva no servidor, não edições não salvas no editor.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: PDF do documento
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}:
+    get:
+      operationId: obterPaciente
+      tags: [pacientes]
+      summary: Obter paciente
+      description: Retorna o paciente com as saídas geradas (mensagem única, sequência manual, blocos operacionais).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paciente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PacienteDetalhe"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    patch:
+      operationId: atualizarPaciente
+      tags: [pacientes]
+      summary: Atualizar paciente
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PacienteUpdate"
+      responses:
+        "200":
+          description: Paciente atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PacienteDetalhe"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/historico:
+    get:
+      operationId: listarHistoricoPaciente
+      tags: [pacientes]
+      summary: Histórico de edições
+      description: Lista as edições registradas para o paciente, da mais recente para a mais antiga.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Histórico de edições
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoricoEdicao"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/aprovar:
+    post:
+      operationId: aprovarPaciente
+      tags: [pacientes]
+      summary: Aprovar e enviar
+      description: Marca o estágio como Enviado e deixa a mensagem + link prontos.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paciente aprovado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PacienteDetalhe"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/marco-manual:
+    post:
+      operationId: marcarMarcoManual
+      tags: [pacientes]
+      summary: Marcar/desmarcar marco manual (pós-operatório)
+      description: Marca ou desmarca um marco pós-operatório (retirada de pontos, 1º/2º/3º retorno). Carimba a data/hora quando concluido=true; limpa quando false.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarcoManualEntrada"
+      responses:
+        "200":
+          description: Marco atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PacienteDetalhe"
+        "400":
+          description: Requisição inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/arquivados:
+    get:
+      operationId: listarPacientesArquivados
+      tags: [pacientes]
+      summary: Listar processos arquivados
+      description: Lista os pacientes arquivados (soft delete) para a visão de Arquivados.
+      responses:
+        "200":
+          description: Lista de pacientes arquivados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Paciente"
+  /pacientes/{id}/arquivar:
+    post:
+      operationId: arquivarPaciente
+      tags: [pacientes]
+      summary: Arquivar processo
+      description: Arquiva o processo (some da lista principal, pode ser restaurado).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paciente arquivado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PacienteDetalhe"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/eventos:
+    get:
+      operationId: obterAtividadePaciente
+      tags: [pacientes]
+      summary: Atividade da paciente
+      description: Lista os eventos de interação da paciente no link e um resumo de acesso.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Atividade da paciente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtividadePaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/restaurar:
+    post:
+      operationId: restaurarPaciente
+      tags: [pacientes]
+      summary: Restaurar processo
+      description: Restaura um processo arquivado de volta à lista principal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paciente restaurado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PacienteDetalhe"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /publico/{token}/eventos:
+    post:
+      operationId: registrarEventoPaciente
+      tags: [publico]
+      summary: Registrar evento da paciente
+      description: Grava uma interação da paciente na página pública. Tolerante a falhas; não expõe dados internos.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventoRegistro"
+      responses:
+        "204":
+          description: Evento registrado (sem conteúdo)
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/timeline:
+    get:
+      operationId: listarTimeline
+      tags: [pacientes]
+      summary: Timeline do processo
+      description: Lista os eventos da timeline (marcos automáticos + anotações manuais) em ordem cronológica.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Eventos da timeline
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimelineEvento"
+    post:
+      operationId: adicionarNota
+      tags: [pacientes]
+      summary: Adicionar anotação manual
+      description: Registra uma anotação manual da Thalita na timeline do processo.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotaCreate"
+      responses:
+        "201":
+          description: Anotação registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimelineEvento"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/lembrete:
+    post:
+      operationId: registrarLembrete
+      tags: [pacientes]
+      summary: Registrar lembrete enviado
+      description: Registra que a equipe enviou um lembrete pelo WhatsApp à paciente que ainda não abriu o link. Grava um evento na timeline (quem/quando) para que dois atendentes não façam o mesmo follow-up.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LembreteCreate"
+      responses:
+        "201":
+          description: Lembrete registrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimelineEvento"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/checkins:
+    get:
+      operationId: listarCheckins
+      tags: [checkins]
+      summary: Check-ins pós-op (staff)
+      description: Lista os check-ins pós-operatórios do processo, ordenados por dia.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Check-ins do processo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    post:
+      operationId: criarCheckin
+      tags: [checkins]
+      summary: Adicionar check-in manual
+      description: Cria um check-in pós-op avulso para o processo.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckinCreate"
+      responses:
+        "201":
+          description: Check-in criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/checkins/seed-padrao:
+    post:
+      operationId: semearCheckinsPadrao
+      tags: [checkins]
+      summary: Gerar check-ins pós-op padrão
+      description: Cria o conjunto padrão de check-ins (D+1 foto, D+7 foto, D+7 retorno, D+30 nps).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Check-ins padrão criados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/checkins/{checkinId}:
+    patch:
+      operationId: atualizarCheckin
+      tags: [checkins]
+      summary: Atualizar check-in
+      description: Atualiza status, nota e/ou o sinal de atenção de um check-in.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: checkinId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckinUpdate"
+      responses:
+        "200":
+          description: Check-in atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /publico/{token}/checkins:
+    get:
+      operationId: listarCheckinsPublico
+      tags: [publico]
+      summary: Meu acompanhamento (paciente)
+      description: Lista os check-ins do dono do token. 404 para token inválido/desconhecido.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Check-ins da paciente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CheckinPublico"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /medicos:
+    get:
+      operationId: listarMedicos
+      tags: [medicos]
+      summary: Listar médicos
+      description: Lista os médicos cadastrados. Por padrão só os ativos.
+      parameters:
+        - name: incluirInativos
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Lista de médicos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medico"
+    post:
+      operationId: criarMedico
+      tags: [medicos]
+      summary: Cadastrar médico
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicoCreate"
+      responses:
+        "201":
+          description: Médico criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medico"
+  /medicos/{id}:
+    patch:
+      operationId: atualizarMedico
+      tags: [medicos]
+      summary: Editar ou desativar médico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicoUpdate"
+      responses:
+        "200":
+          description: Médico atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medico"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /vendedoras:
+    get:
+      operationId: listarVendedoras
+      tags: [vendedoras]
+      summary: Listar vendedoras
+      description: Lista a lista fixa de vendedoras responsáveis. Por padrão só as ativas.
+      parameters:
+        - name: incluirInativas
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Lista de vendedoras
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vendedora"
+    post:
+      operationId: criarVendedora
+      tags: [vendedoras]
+      summary: Cadastrar vendedora
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendedoraCreate"
+      responses:
+        "201":
+          description: Vendedora criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendedora"
+  /vendedoras/{id}:
+    patch:
+      operationId: atualizarVendedora
+      tags: [vendedoras]
+      summary: Editar ou desativar vendedora
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendedoraUpdate"
+      responses:
+        "200":
+          description: Vendedora atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendedora"
+        "404":
+          description: Não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /publico/{token}:
+    get:
+      operationId: obterPaginaPaciente
+      tags: [publico]
+      summary: Página pública da paciente
+      description: Retorna os dados da página da paciente a partir do token. Sem login, sem dado pessoal na URL além do token.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dados da página da paciente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaPaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /publico/{token}/tema:
+    put:
+      operationId: definirTemaPaciente
+      tags: [publico]
+      summary: Salvar a preferência de tema da paciente
+      description: Persiste a escolha claro/escuro da paciente, vinculada ao token, para que o registro escolhido a acompanhe entre dispositivos.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemaPaciente"
+      responses:
+        "200":
+          description: Tema salvo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemaPaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /conteudo-padrao:
+    get:
+      operationId: obterConteudoPadrao
+      tags: [conteudo]
+      summary: Conteúdo padrão global
+      description: Retorna o conteúdo padrão global da página pública.
+      responses:
+        "200":
+          description: Conteúdo padrão
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoPagina"
+    put:
+      operationId: atualizarConteudoPadrao
+      tags: [conteudo]
+      summary: Salvar conteúdo padrão global
+      description: Substitui o conteúdo padrão global da página pública.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConteudoPagina"
+      responses:
+        "200":
+          description: Conteúdo padrão salvo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoPagina"
+  /pacientes/{id}/conteudo:
+    get:
+      operationId: obterConteudoPaciente
+      tags: [conteudo]
+      summary: Conteúdo efetivo da paciente
+      description: Retorna o conteúdo da paciente (override se houver, senão o padrão global) e se é personalizado.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conteúdo da paciente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoPaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    put:
+      operationId: atualizarConteudoPaciente
+      tags: [conteudo]
+      summary: Salvar override da paciente
+      description: Salva um conteúdo personalizado (override) para a paciente.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConteudoPagina"
+      responses:
+        "200":
+          description: Override salvo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoPaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    delete:
+      operationId: removerConteudoPaciente
+      tags: [conteudo]
+      summary: Reverter ao padrão
+      description: Remove o override da paciente, voltando ao conteúdo padrão global.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Override removido (volta ao padrão)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConteudoPaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      description: |
+        Returns a presigned GCS URL for direct upload. The client sends JSON
+        metadata here, then uploads the file directly to the returned URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /pacientes/{id}/documentos:
+    get:
+      operationId: listarDocumentos
+      tags: [documentos]
+      summary: Listar documentos da paciente
+      description: Lista os PDFs anexados à paciente (mais recentes primeiro).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de documentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocumentoPaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    post:
+      operationId: registrarDocumento
+      tags: [documentos]
+      summary: Registrar documento subido
+      description: Registra um PDF já enviado ao armazenamento (via URL pré-assinada) contra a paciente. Só aceita PDF e impõe um limite de tamanho.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrarDocumentoInput"
+      responses:
+        "201":
+          description: Documento registrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentoPaciente"
+        "400":
+          description: Tipo inválido ou arquivo muito grande
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/documentos/{documentoId}:
+    delete:
+      operationId: removerDocumento
+      tags: [documentos]
+      summary: Remover documento
+      description: Remove o registro e apaga o objeto do armazenamento.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: documentoId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Documento removido (sem conteúdo)
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/pedido-exames:
+    get:
+      operationId: obterPedidoExames
+      tags: [documentos]
+      summary: Obter o pedido de exames da paciente
+      description: Metadados do PDF de pedido de exames anexado à paciente (um por paciente). `pedidoExames` é null quando não há.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pedido de exames (ou null)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PedidoExamesResposta"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    delete:
+      operationId: removerPedidoExames
+      tags: [documentos]
+      summary: Remover o pedido de exames
+      description: Remove o registro e apaga o objeto do armazenamento (idempotente).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Pedido de exames removido (sem conteúdo)
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/receita-preparo-pele:
+    get:
+      operationId: obterReceitaPreparoPele
+      tags: [documentos]
+      summary: Obter a receita de preparo da pele da paciente
+      description: Metadados do PDF de receita de preparo da pele anexado à paciente (um por paciente). `receitaPreparoPele` é null quando não há.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Receita de preparo da pele (ou null)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceitaPreparoPeleResposta"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    delete:
+      operationId: removerReceitaPreparoPele
+      tags: [documentos]
+      summary: Remover a receita de preparo da pele
+      description: Remove o registro e apaga o objeto do armazenamento (idempotente).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Receita removida (sem conteúdo)
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /pacientes/{id}/receituario-posop:
+    get:
+      operationId: obterReceituarioPosop
+      tags: [documentos]
+      summary: Obter o receituário pós-operatório da paciente
+      description: Metadados do PDF de receituário pós-operatório anexado à paciente (um por paciente). `receituarioPosop` é null quando não há.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Receituário pós-operatório (ou null)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceituarioPosopResposta"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    delete:
+      operationId: removerReceituarioPosop
+      tags: [documentos]
+      summary: Remover o receituário pós-operatório
+      description: Remove o registro e apaga o objeto do armazenamento (idempotente).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Receituário removido (sem conteúdo)
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Erro:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+    ConflitoCpf:
+      type: object
+      description: >-
+        Resposta 409 do cadastro de paciente. Quando `codigo` é `cpf_arquivado`,
+        `pacienteArquivado` traz o resumo do cadastro arquivado encontrado, para
+        que a equipe decida restaurá-lo ou criar um novo cadastro.
+      properties:
+        message:
+          type: string
+        codigo:
+          type: string
+          enum: [cpf_ativo, cpf_arquivado]
+          description: Tipo do conflito de CPF.
+        pacienteArquivado:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/PacienteArquivadoResumo"
+      required:
+        - message
+    PacienteArquivadoResumo:
+      type: object
+      description: Resumo mínimo de um cadastro arquivado, para oferecer a restauração.
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        dataCirurgia:
+          type: string
+          description: Data da cirurgia do cadastro arquivado (YYYY-MM-DD).
+      required:
+        - id
+        - nome
+        - dataCirurgia
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Original file name.
+        size:
+          type: integer
+          minimum: 1
+          description: File size in bytes.
+        contentType:
+          type: string
+          minLength: 1
+          description: MIME type of the file (e.g. `application/pdf`).
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+          description: Presigned GCS URL for PUT upload.
+        objectPath:
+          type: string
+          description: Normalized object path (e.g. `/objects/uploads/uuid`). Store this in your database.
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    DocumentoPaciente:
+      type: object
+      description: Metadados de um PDF anexado à paciente (visão do Console). Nunca expõe o caminho interno do objeto.
+      properties:
+        id:
+          type: integer
+        rotulo:
+          type: string
+        nomeArquivo:
+          type: string
+        contentType:
+          type: string
+        tamanho:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - rotulo
+        - nomeArquivo
+        - contentType
+        - tamanho
+        - createdAt
+    DocumentoPublico:
+      type: object
+      description: Documento exposto na página pública da paciente. Identificado por um token opaco, nunca pelo id interno nem pelo caminho do objeto.
+      properties:
+        token:
+          type: string
+          description: Referência pública opaca usada para abrir/baixar o documento.
+        rotulo:
+          type: string
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+      required:
+        - token
+        - rotulo
+        - nomeArquivo
+        - tamanho
+    PedidoExames:
+      type: object
+      description: Metadados do PDF de pedido de exames anexado à paciente (visão do Console). Um por paciente. Nunca expõe o caminho interno do objeto.
+      properties:
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - nomeArquivo
+        - tamanho
+        - createdAt
+    PedidoExamesResposta:
+      type: object
+      description: Resposta do endpoint de pedido de exames — o registro ou null quando a paciente ainda não tem um.
+      properties:
+        pedidoExames:
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/PedidoExames"
+      required:
+        - pedidoExames
+    PedidoExamesPublico:
+      type: object
+      description: Pedido de exames exposto na página pública da paciente. Identificado por um token opaco, nunca pelo id interno nem pelo caminho do objeto.
+      properties:
+        token:
+          type: string
+          description: Referência pública opaca usada para abrir/baixar o pedido de exames.
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+      required:
+        - token
+        - nomeArquivo
+        - tamanho
+    ReceitaPreparoPele:
+      type: object
+      description: Metadados do PDF de receita de preparo da pele anexado à paciente (visão do Console). Um por paciente. Nunca expõe o caminho interno do objeto.
+      properties:
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - nomeArquivo
+        - tamanho
+        - createdAt
+    ReceitaPreparoPeleResposta:
+      type: object
+      description: Resposta do endpoint de receita de preparo da pele — o registro ou null quando a paciente ainda não tem uma.
+      properties:
+        receitaPreparoPele:
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/ReceitaPreparoPele"
+      required:
+        - receitaPreparoPele
+    ReceitaPreparoPelePublico:
+      type: object
+      description: Receita de preparo da pele exposta na página pública da paciente. Identificada por um token opaco, nunca pelo id interno nem pelo caminho do objeto.
+      properties:
+        token:
+          type: string
+          description: Referência pública opaca usada para abrir/baixar a receita.
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+      required:
+        - token
+        - nomeArquivo
+        - tamanho
+    ReceituarioPosop:
+      type: object
+      description: Metadados do PDF de receituário pós-operatório anexado à paciente (visão do Console). Um por paciente. Nunca expõe o caminho interno do objeto.
+      properties:
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - nomeArquivo
+        - tamanho
+        - createdAt
+    ReceituarioPosopResposta:
+      type: object
+      description: Resposta do endpoint de receituário pós-operatório — o registro ou null quando a paciente ainda não tem um.
+      properties:
+        receituarioPosop:
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/ReceituarioPosop"
+      required:
+        - receituarioPosop
+    ReceituarioPosopPublico:
+      type: object
+      description: Receituário pós-operatório exposto na página pública da paciente. Identificado por um token opaco, nunca pelo id interno nem pelo caminho do objeto.
+      properties:
+        token:
+          type: string
+          description: Referência pública opaca usada para abrir/baixar o receituário.
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+      required:
+        - token
+        - nomeArquivo
+        - tamanho
+    RegistrarDocumentoInput:
+      type: object
+      description: Registro de um PDF já enviado ao armazenamento via URL pré-assinada.
+      properties:
+        objectPath:
+          type: string
+          description: "Caminho do objeto retornado pela URL pré-assinada (ex.: /objects/uploads/uuid)."
+        rotulo:
+          type: string
+          description: 'Rótulo/categoria (ex.: "Pedido médico").'
+        nomeArquivo:
+          type: string
+          description: Nome original do arquivo.
+        contentType:
+          type: string
+          description: MIME type — deve ser application/pdf.
+        tamanho:
+          type: integer
+          description: Tamanho em bytes.
+      required:
+        - objectPath
+        - rotulo
+        - nomeArquivo
+        - contentType
+        - tamanho
+    UploadContratoInput:
+      type: object
+      description: >-
+        Registro de um contrato PRONTO (PDF) já enviado ao armazenamento via URL
+        pré-assinada, para criar uma geração de upload em rascunho.
+      properties:
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+        objectPath:
+          type: string
+          description: "Caminho do objeto retornado pela URL pré-assinada (ex.: /objects/uploads/uuid)."
+        nomeArquivo:
+          type: string
+          description: Nome original do arquivo.
+        contentType:
+          type: string
+          description: MIME type — deve ser application/pdf.
+        tamanho:
+          type: integer
+          description: Tamanho em bytes.
+        titulo:
+          type: string
+          description: Título do documento. Ausente = derivado do nome do arquivo.
+      required:
+        - tipo
+        - objectPath
+        - nomeArquivo
+        - contentType
+        - tamanho
+    Estagio:
+      type: string
+      enum:
+        - Fechamento
+        - Enviado
+        - Véspera
+        - Cirurgia
+    Paciente:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        cpf:
+          type: string
+          description: CPF da paciente (apenas dígitos, 11).
+        telefone:
+          type: string
+          description: Telefone/WhatsApp da paciente (apenas dígitos, 10 ou 11 com DDD).
+        email:
+          type: string
+          nullable: true
+          description: E-mail da paciente (opcional). Puxado do contato do Twenty quando disponível.
+        twentyContactId:
+          type: string
+          nullable: true
+          description: Id do contato (People) no Twenty. Quando presente, a ficha está vinculada a uma pessoa REAL do CRM e o nome vem do contato (não editável à mão).
+        rg:
+          type: string
+          nullable: true
+          description: RG da paciente (texto livre). Opcional.
+        nascimento:
+          type: string
+          nullable: true
+          description: Data de nascimento (texto livre, ex. 15/05/1981). Opcional.
+        endereco:
+          type: string
+          nullable: true
+          description: Endereço residencial completo da paciente (texto livre). Opcional.
+        procedimentos:
+          type: array
+          items:
+            type: string
+        dataCirurgia:
+          type: string
+          description: Data da cirurgia (YYYY-MM-DD)
+        horario:
+          type: string
+        valorSinal:
+          type: number
+          description: Valor já pago pela paciente.
+        valorPendente:
+          type: number
+          description: Saldo em aberto (0 quando quitado).
+        dataPagamentoPendente:
+          type: string
+          nullable: true
+          description: Data prevista do pagamento pendente (YYYY-MM-DD); null quando quitado.
+        laser:
+          type: boolean
+        medica:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        clinica:
+          type: string
+        local:
+          type: string
+        localEndereco:
+          type: string
+          nullable: true
+        equipeAnestesia:
+          type: string
+        equipeAnestesiaTelefone:
+          type: string
+          nullable: true
+          description: Telefone da equipe de anestesia (texto livre). null quando não informado.
+        estagio:
+          $ref: "#/components/schemas/Estagio"
+        vendedoraId:
+          type: ["integer", "null"]
+        vendedoraNome:
+          type: ["string", "null"]
+        arquivado:
+          type: boolean
+        tokenPublico:
+          type: string
+        contratoAutentiqueId:
+          type: string
+          nullable: true
+          description: ID do documento na Autentique vinculado ao processo (null quando sem contrato).
+        contratoStatus:
+          type: string
+          nullable: true
+          enum:
+            - assinado
+            - pendente
+            - recusado
+            - indisponivel
+          description: Último status conhecido do contrato (null quando sem link salvo).
+        contratoAssinadoEm:
+          type: string
+          nullable: true
+          description: Data ISO da assinatura quando o contrato está assinado.
+        contratoVerificadoEm:
+          type: string
+          nullable: true
+          description: Data ISO da última verificação do status na Autentique.
+        medicoId:
+          type: ["integer", "null"]
+          description: Médico que atende a paciente (null quando nenhum vinculado).
+        contratoLinkAssinatura:
+          type: string
+          nullable: true
+          description: Link de assinatura do contrato a usar (override manual quando houver; senão o cache do link da Autentique). null quando assinado/sem link.
+        contratoLinkAssinaturaManual:
+          type: string
+          nullable: true
+          description: Override manual do link de assinatura colado pela secretária; tem prioridade sobre o link automático.
+        contratoPrazoOverride:
+          type: string
+          nullable: true
+          description: Prazo de assinatura definido manualmente para esta paciente (YYYY-MM-DD); quando null, usa dataCirurgia − prazo padrão.
+        contratoPrazo:
+          type: string
+          nullable: true
+          description: Prazo de assinatura já calculado (YYYY-MM-DD); override quando houver, senão dataCirurgia − prazo padrão. null quando não há base para calcular.
+        termoAutentiqueId:
+          type: string
+          nullable: true
+          description: ID do documento do termo de consentimento na Autentique (null quando sem termo).
+        termoStatus:
+          type: string
+          nullable: true
+          enum:
+            - assinado
+            - pendente
+            - recusado
+            - indisponivel
+          description: Último status conhecido do termo de consentimento (null quando sem link salvo).
+        termoAssinadoEm:
+          type: string
+          nullable: true
+          description: Data ISO da assinatura quando o termo está assinado.
+        termoVerificadoEm:
+          type: string
+          nullable: true
+          description: Data ISO da última verificação do status do termo na Autentique.
+        termoLinkAssinatura:
+          type: string
+          nullable: true
+          description: Link de assinatura do termo a usar (override manual quando houver; senão o cache da Autentique). null quando assinado/sem link.
+        termoLinkAssinaturaManual:
+          type: string
+          nullable: true
+          description: Override manual do link de assinatura do termo; tem prioridade sobre o link automático.
+        termoPrazoOverride:
+          type: string
+          nullable: true
+          description: Prazo de assinatura definido manualmente para o termo desta paciente (YYYY-MM-DD).
+        termoPrazo:
+          type: string
+          nullable: true
+          description: Prazo de assinatura do termo já calculado (YYYY-MM-DD). null quando não há base para calcular.
+        codigoPublico:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        tema:
+          type: ["string", "null"]
+          enum: [light, dark, null]
+          description: Preferência de tema (claro/escuro) escolhida pela paciente na página pública (null quando nunca escolheu → cai no padrão claro).
+        marcoAtual:
+          type: ["string", "null"]
+          enum: [contrato_pagamento, link_enviado, termo_assinado, menos_48h_cirurgia, cirurgia, retirada_pontos, retorno_1, retorno_2, retorno_3, null]
+          description: Marco mais avançado já atingido na jornada interna da equipe; null quando nenhum (aguardando contrato). Derivado no servidor a partir dos sinais do processo. O funil não passa de contrato_pagamento enquanto o contrato não está assinado por todas as partes.
+        marcoAtualRotulo:
+          type: string
+          description: Rótulo legível do marco atual (por exemplo, Contrato & Pagamento); Aguardando contrato no baseline.
+        marcoAtualIndice:
+          type: integer
+          minimum: 0
+          maximum: 9
+          description: Posição do marco atual (1..9); 0 quando nenhum marco foi atingido (aguardando contrato).
+        marcosConcluidos:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarcoJornadaEquipe"
+          description: Marcos individualmente cumpridos (para um render honesto de cada nó do funil, já que marcos automáticos podem ficar "em falha").
+        linkEnviadoEm:
+          type: ["string", "null"]
+          description: Data/hora ISO em que o link foi enviado à paciente (handoff aprovado). null quando ainda não enviado.
+        retiradaPontosEm:
+          type: ["string", "null"]
+          description: Data/hora ISO em que a retirada de pontos foi marcada manualmente pela equipe. null quando não marcada.
+        retorno1Em:
+          type: ["string", "null"]
+          description: Data/hora ISO do 1º retorno (marcado manualmente). null quando não marcado.
+        retorno2Em:
+          type: ["string", "null"]
+          description: Data/hora ISO do 2º retorno (marcado manualmente). null quando não marcado.
+        retorno3Em:
+          type: ["string", "null"]
+          description: Data/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.
+        abriu:
+          type: boolean
+          description: Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.
+        lembreteEnviadoEm:
+          type: ["string", "null"]
+          description: Data/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.
+        lembradoPor:
+          type: ["string", "null"]
+          description: Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.
+      required:
+        - id
+        - nome
+        - cpf
+        - telefone
+        - procedimentos
+        - dataCirurgia
+        - horario
+        - valorSinal
+        - valorPendente
+        - dataPagamentoPendente
+        - laser
+        - medica
+        - crm
+        - rqe
+        - clinica
+        - local
+        - equipeAnestesia
+        - estagio
+        - vendedoraId
+        - vendedoraNome
+        - arquivado
+        - tokenPublico
+        - contratoAutentiqueId
+        - contratoStatus
+        - contratoAssinadoEm
+        - contratoVerificadoEm
+        - medicoId
+        - contratoLinkAssinatura
+        - contratoLinkAssinaturaManual
+        - contratoPrazoOverride
+        - contratoPrazo
+        - termoAutentiqueId
+        - termoStatus
+        - termoAssinadoEm
+        - termoVerificadoEm
+        - termoLinkAssinatura
+        - termoLinkAssinaturaManual
+        - termoPrazoOverride
+        - termoPrazo
+        - codigoPublico
+        - createdAt
+        - updatedAt
+        - tema
+        - marcoAtual
+        - marcoAtualRotulo
+        - marcoAtualIndice
+        - marcosConcluidos
+        - linkEnviadoEm
+        - retiradaPontosEm
+        - retorno1Em
+        - retorno2Em
+        - retorno3Em
+    PacienteCreate:
+      type: object
+      properties:
+        nome:
+          type: string
+        cpf:
+          type: string
+          pattern: '^(\d{11})?$'
+          description: CPF da paciente (apenas dígitos, 11) — OPCIONAL; vazio quando ainda não se tem o CPF.
+        telefone:
+          type: string
+          pattern: '^\d{10,11}$'
+          description: Telefone/WhatsApp (apenas dígitos, 10 ou 11 com DDD).
+        procedimentos:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        dataCirurgia:
+          type: string
+          description: Data da cirurgia (YYYY-MM-DD)
+        horario:
+          type: string
+          default: "06:00"
+        valorSinal:
+          type: number
+          description: Valor já pago pela paciente.
+        valorPendente:
+          type: number
+          default: 0
+          description: Saldo em aberto (0 quando quitado).
+        dataPagamentoPendente:
+          type: string
+          nullable: true
+          description: Data prevista do pagamento pendente (YYYY-MM-DD).
+        laser:
+          type: boolean
+          default: false
+        local:
+          type: string
+          default: Avant Moema
+          description: Hospital/local da cirurgia (texto livre).
+        localEndereco:
+          type: string
+          nullable: true
+          description: Endereço do local da cirurgia (texto livre, opcional).
+        equipeAnestesia:
+          type: string
+          default: Zenicare
+        equipeAnestesiaTelefone:
+          type: string
+          nullable: true
+          description: Telefone da equipe de anestesia (texto livre, opcional).
+        vendedoraId:
+          type: ["integer", "null"]
+        medicoId:
+          type: ["integer", "null"]
+          description: Médico que atende a paciente. Quando omitido, usa o médico padrão.
+        email:
+          type: string
+          nullable: true
+          description: E-mail da paciente (opcional). Puxado do contato do Twenty quando disponível; habilita entrega de assinatura por e-mail.
+        twentyContactId:
+          type: string
+          nullable: true
+          description: Id do contato (People) no Twenty. Vincula a ficha a uma pessoa REAL do CRM quando cadastrada a partir da busca.
+        rg:
+          type: string
+          nullable: true
+          description: RG da paciente (texto livre). Opcional.
+        nascimento:
+          type: string
+          nullable: true
+          description: Data de nascimento (texto livre, ex. 15/05/1981). Opcional.
+        endereco:
+          type: string
+          nullable: true
+          description: Endereço residencial completo da paciente (texto livre). Opcional.
+        permitirCpfArquivado:
+          type: boolean
+          default: false
+          description: >-
+            Quando true, autoriza criar um novo cadastro mesmo que exista um
+            cadastro ARQUIVADO com o mesmo CPF (paciente que voltou para um novo
+            procedimento). Não afeta o bloqueio contra cadastros ativos.
+      required:
+        - nome
+        - telefone
+        - procedimentos
+        - dataCirurgia
+        - valorSinal
+    PacienteUpdate:
+      type: object
+      properties:
+        nome:
+          type: string
+        cpf:
+          type: string
+          pattern: '^(\d{11})?$'
+          description: CPF da paciente (apenas dígitos, 11) — OPCIONAL; vazio quando ainda não se tem o CPF.
+        telefone:
+          type: string
+          pattern: '^\d{10,11}$'
+          description: Telefone/WhatsApp (apenas dígitos, 10 ou 11 com DDD).
+        email:
+          type: string
+          nullable: true
+          description: E-mail da paciente (opcional). Vazio/null limpa o e-mail.
+        twentyContactId:
+          type: string
+          nullable: true
+          description: >-
+            Id do contato (People) no Twenty. Re-vincula a ficha a outra pessoa
+            do CRM (usado ao trocar o paciente pela busca no Twenty). Vazio/null
+            desvincula.
+        rg:
+          type: string
+          nullable: true
+          description: RG da paciente (texto livre). Opcional. Vazio/null limpa.
+        nascimento:
+          type: string
+          nullable: true
+          description: Data de nascimento (texto livre). Opcional. Vazio/null limpa.
+        endereco:
+          type: string
+          nullable: true
+          description: Endereço residencial completo (texto livre). Opcional. Vazio/null limpa.
+        procedimentos:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        dataCirurgia:
+          type: string
+        horario:
+          type: string
+        valorSinal:
+          type: number
+        valorPendente:
+          type: number
+        dataPagamentoPendente:
+          type: string
+          nullable: true
+        laser:
+          type: boolean
+        local:
+          type: string
+        localEndereco:
+          type: string
+          nullable: true
+        equipeAnestesia:
+          type: string
+        equipeAnestesiaTelefone:
+          type: string
+          nullable: true
+          description: Telefone da equipe de anestesia (texto livre, opcional).
+        medica:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        clinica:
+          type: string
+        estagio:
+          $ref: "#/components/schemas/Estagio"
+        contratoLink:
+          type: string
+          nullable: true
+          description: URL do painel da Autentique ou ID do documento. Vazio/null limpa o vínculo.
+        contratoLinkAssinaturaManual:
+          type: string
+          nullable: true
+          description: Override manual do link de assinatura. Vazio/null limpa o override (volta ao link automático).
+        contratoPrazoOverride:
+          type: string
+          nullable: true
+          description: Prazo de assinatura manual para esta paciente (YYYY-MM-DD). Vazio/null volta ao prazo padrão.
+        termoLink:
+          type: string
+          nullable: true
+          description: URL do painel da Autentique ou ID do documento do termo. Vazio/null limpa o vínculo.
+        termoLinkAssinaturaManual:
+          type: string
+          nullable: true
+          description: Override manual do link de assinatura do termo. Vazio/null limpa o override.
+        termoPrazoOverride:
+          type: string
+          nullable: true
+          description: Prazo de assinatura manual do termo para esta paciente (YYYY-MM-DD). Vazio/null volta ao prazo padrão.
+        vendedoraId:
+          type: ["integer", "null"]
+        medicoId:
+          type: ["integer", "null"]
+          description: Médico que atende a paciente.
+    AlteracaoCampo:
+      type: object
+      properties:
+        campo:
+          type: string
+        rotulo:
+          type: string
+        de:
+          type: string
+        para:
+          type: string
+      required:
+        - campo
+        - rotulo
+        - de
+        - para
+    HistoricoEdicao:
+      type: object
+      properties:
+        id:
+          type: integer
+        alteracoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlteracaoCampo"
+        createdAt:
+          type: string
+      required:
+        - id
+        - alteracoes
+        - createdAt
+    CheckinTipo:
+      type: string
+      enum:
+        - foto
+        - retorno
+        - nps
+    CheckinStatus:
+      type: string
+      enum:
+        - pendente
+        - concluido
+        - atrasado
+    Checkin:
+      type: object
+      description: Check-in pós-op visto pelo staff (Console).
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        dia:
+          type: integer
+          description: Dia relativo à cirurgia (D+N).
+        tipo:
+          $ref: "#/components/schemas/CheckinTipo"
+        status:
+          $ref: "#/components/schemas/CheckinStatus"
+        fotoUrl:
+          type: string
+          nullable: true
+          description: URL assinada (temporária) da foto; null quando não há foto.
+        nota:
+          type: string
+          nullable: true
+        sinalAtencao:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - pacienteId
+        - dia
+        - tipo
+        - status
+        - fotoUrl
+        - nota
+        - sinalAtencao
+        - createdAt
+    CheckinPublico:
+      type: object
+      description: Check-in visto pela paciente na página pública (sem notas internas).
+      properties:
+        id:
+          type: integer
+        dia:
+          type: integer
+        tipo:
+          $ref: "#/components/schemas/CheckinTipo"
+        status:
+          $ref: "#/components/schemas/CheckinStatus"
+        fotoUrl:
+          type: string
+          nullable: true
+          description: URL assinada (temporária) da foto enviada; null quando ainda não há foto.
+      required:
+        - id
+        - dia
+        - tipo
+        - status
+        - fotoUrl
+    CheckinCreate:
+      type: object
+      properties:
+        dia:
+          type: integer
+        tipo:
+          $ref: "#/components/schemas/CheckinTipo"
+        status:
+          $ref: "#/components/schemas/CheckinStatus"
+        nota:
+          type: string
+      required:
+        - dia
+        - tipo
+    CheckinUpdate:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/CheckinStatus"
+        nota:
+          type: string
+          nullable: true
+        sinalAtencao:
+          type: boolean
+    TipoEvento:
+      type: string
+      enum:
+        - abertura
+        - calendario
+        - mapa
+        - resumo
+        - whatsapp
+        - ligacao
+        - preparo
+        - documento
+        - politica
+    EventoRegistro:
+      type: object
+      description: Interação a registrar na página pública da paciente.
+      properties:
+        tipo:
+          $ref: "#/components/schemas/TipoEvento"
+        rotulo:
+          type: string
+          description: "Rótulo curto opcional (ex.: qual botão ou documento)."
+      required:
+        - tipo
+    EventoPaciente:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        rotulo:
+          type: string
+          nullable: true
+        descricao:
+          type: string
+          description: Descrição legível da interação.
+        createdAt:
+          type: string
+      required:
+        - id
+        - tipo
+        - descricao
+        - createdAt
+    AtividadePaciente:
+      type: object
+      description: Resumo de acesso e linha do tempo de eventos da paciente.
+      properties:
+        abriu:
+          type: boolean
+        primeiraAbertura:
+          type: string
+          nullable: true
+        totalAberturas:
+          type: integer
+        eventos:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventoPaciente"
+      required:
+        - abriu
+        - totalAberturas
+        - eventos
+    ChecklistItem:
+      type: object
+      properties:
+        titulo:
+          type: string
+        sempre:
+          type: boolean
+        incluido:
+          type: boolean
+      required:
+        - titulo
+        - sempre
+        - incluido
+    SaidasConsole:
+      type: object
+      description: Saídas geradas para o Console.
+      properties:
+        link:
+          type: string
+        mensagemUnica:
+          type: string
+        a6:
+          type: string
+        a7:
+          type: string
+        a8:
+          type: string
+        a4:
+          type: string
+        a5:
+          type: string
+        avisoOperacional:
+          type: string
+        checklistMedx:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChecklistItem"
+      required:
+        - link
+        - mensagemUnica
+        - a6
+        - a7
+        - a8
+        - a4
+        - a5
+        - avisoOperacional
+        - checklistMedx
+    PacienteDetalhe:
+      type: object
+      properties:
+        paciente:
+          $ref: "#/components/schemas/Paciente"
+        saidas:
+          $ref: "#/components/schemas/SaidasConsole"
+      required:
+        - paciente
+        - saidas
+    MarcoJornadaEquipe:
+      type: string
+      description: Marco da jornada interna da equipe (funil de 9 marcos, de Contrato & Pagamento ao 3º retorno). Não tem relação com a jornada pública da paciente.
+      enum:
+        - contrato_pagamento
+        - link_enviado
+        - termo_assinado
+        - menos_48h_cirurgia
+        - cirurgia
+        - retirada_pontos
+        - retorno_1
+        - retorno_2
+        - retorno_3
+    MarcoJornadaInfo:
+      type: object
+      description: Definição de um marco da jornada da equipe (ordem implícita pela posição no array, rótulo e se é automático ou manual).
+      properties:
+        chave:
+          $ref: "#/components/schemas/MarcoJornadaEquipe"
+        rotulo:
+          type: string
+        automatico:
+          type: boolean
+          description: true quando o marco é detectado automaticamente; false quando a equipe marca/desmarca manualmente (pós-operatório).
+      required:
+        - chave
+        - rotulo
+        - automatico
+    MarcoContagem:
+      type: object
+      description: Quantidade de processos cujo marco atual (mais avançado atingido) é este.
+      properties:
+        chave:
+          $ref: "#/components/schemas/MarcoJornadaEquipe"
+        rotulo:
+          type: string
+        total:
+          type: integer
+      required:
+        - chave
+        - rotulo
+        - total
+    MarcoManualEntrada:
+      type: object
+      description: Marca ou desmarca um marco pós-operatório manual de um processo.
+      properties:
+        marco:
+          type: string
+          enum:
+            - retirada_pontos
+            - retorno_1
+            - retorno_2
+            - retorno_3
+          description: Marco pós-operatório a marcar/desmarcar (apenas marcos manuais).
+        concluido:
+          type: boolean
+          description: true carimba a data/hora atual; false limpa o marco.
+        autor:
+          type: string
+          description: Nome do membro da equipe que marcou (capturado pelo Console). Opcional.
+      required:
+        - marco
+        - concluido
+    ResumoConsole:
+      type: object
+      properties:
+        total:
+          type: integer
+        porMarco:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarcoContagem"
+          description: Contagem de processos por marco atual (mais avançado atingido), na ordem da jornada.
+        aguardandoContrato:
+          type: integer
+          description: Processos que ainda não atingiram nenhum marco (aguardando contrato).
+        contratosPendentes:
+          type: integer
+          description: Quantidade de processos com contrato em status pendente (cache).
+        termosPendentes:
+          type: integer
+          description: Quantidade de processos com termo de consentimento (TCLE) em status pendente (cache).
+      required:
+        - total
+        - porMarco
+        - aguardandoContrato
+        - contratosPendentes
+        - termosPendentes
+    HospitalOption:
+      type: object
+      properties:
+        chave:
+          type: string
+        nome:
+          type: string
+        nomeCompleto:
+          type: string
+          description: Nome completo da instituição, igual ao que a página da paciente mostra.
+        local:
+          type: string
+          description: Texto "Nome Completo — Endereço" usado na página da paciente (só o nome quando o endereço ainda não está cadastrado).
+        instrucoesChegada:
+          type: string
+          description: Instruções de chegada/jejum específicas do hospital, iguais ao que a página da paciente mostra. Já vem com um fallback genérico quando o protocolo ainda não tem o texto cadastrado.
+        sinalSugerido:
+          type: number
+      required:
+        - chave
+        - nome
+        - nomeCompleto
+        - local
+        - instrucoesChegada
+    ProcedimentoTemplate:
+      type: object
+      properties:
+        chave:
+          type: string
+        nome:
+          type: string
+        descricao:
+          type: string
+        horarioSugerido:
+          type: string
+          nullable: true
+        laserSugerido:
+          type: boolean
+        sinalSugerido:
+          type: number
+          nullable: true
+      required:
+        - chave
+        - nome
+        - descricao
+        - laserSugerido
+    ConfigOperacional:
+      type: object
+      description: Hospitais e procedimentos disponíveis para seleção.
+      properties:
+        hospitais:
+          type: array
+          items:
+            $ref: "#/components/schemas/HospitalOption"
+        procedimentos:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProcedimentoTemplate"
+        temaPadrao:
+          type: string
+          enum: [light, dark]
+          description: Registro (claro/escuro) com que novas páginas de paciente abrem no primeiro acesso. A escolha da própria paciente sempre vence depois.
+        prazoAssinaturaDiasAntes:
+          type: integer
+          minimum: 0
+          description: Quantos dias antes da cirurgia o contrato deve estar assinado (padrão da clínica). O Console usa para calcular o prazo e os avisos.
+        vencimentoSaldoDiasUteisAntes:
+          type: integer
+          minimum: 0
+          description: Quantos dias úteis antes da cirurgia o saldo pendente vence por padrão. O Console usa para pré-preencher o vencimento do saldo e na dica do campo.
+        jornadaEquipe:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarcoJornadaInfo"
+          description: Ordem, rótulos e tipo (automático/manual) dos marcos da jornada interna da equipe. Fonte única — os frontends nunca devem hardcodar.
+      required:
+        - hospitais
+        - procedimentos
+        - temaPadrao
+        - prazoAssinaturaDiasAntes
+        - vencimentoSaldoDiasUteisAntes
+        - jornadaEquipe
+    ConfigNotificacao:
+      type: object
+      description: Avisos de contrato à equipe — destino (webhook) e o liga/desliga. Editável pelo Console, sem mexer em secrets.
+      properties:
+        webhookUrl:
+          type: string
+          nullable: true
+          description: Destino do aviso (Slack/Discord/ponte WhatsApp). null ou vazio limpa o destino salvo.
+        silenciada:
+          type: boolean
+          description: Quando true, os avisos param sem perder o destino salvo.
+      required:
+        - webhookUrl
+        - silenciada
+    TestarNotificacaoBody:
+      type: object
+      description: Destino a testar. Vazio/ausente cai no destino salvo no Console.
+      properties:
+        webhookUrl:
+          type: string
+          nullable: true
+          description: Destino recém-digitado (ainda não salvo) a ser testado.
+    ResultadoTesteNotificacao:
+      type: object
+      description: Resultado do envio do aviso de teste.
+      properties:
+        resultado:
+          type: string
+          enum: [enviado, sem-webhook, falha]
+          description: enviado = destino aceitou; sem-webhook = nada para testar; falha = destino existe mas a entrega falhou.
+        status:
+          type: integer
+          description: Código HTTP devolvido pelo destino, quando houve resposta.
+      required:
+        - resultado
+    ConfigContrato:
+      type: object
+      description: Configuração operacional da clínica (linha única). Editável pelo Console.
+      properties:
+        prazoAssinaturaDiasAntes:
+          type: integer
+          minimum: 0
+          description: Quantos dias antes da cirurgia o contrato deve estar assinado.
+        vencimentoSaldoDiasUteisAntes:
+          type: integer
+          minimum: 0
+          description: Quantos dias úteis antes da cirurgia o saldo pendente vence por padrão.
+      required:
+        - prazoAssinaturaDiasAntes
+        - vencimentoSaldoDiasUteisAntes
+    ConfigPromptItem:
+      type: object
+      description: Um prompt da geração por IA — texto efetivo, padrão de código e os tokens que ele deve conter.
+      properties:
+        texto:
+          type: string
+          description: Texto efetivo do prompt (customizado quando houver; senão, o padrão de código).
+        padrao:
+          type: string
+          description: Prompt padrão de código, para exibir e permitir "restaurar padrão".
+        personalizado:
+          type: boolean
+          description: true quando há um texto customizado salvo (diferente do padrão).
+        tokens:
+          type: array
+          items:
+            type: string
+          description: Tokens {{...}} obrigatórios que o servidor substitui na geração.
+      required:
+        - texto
+        - padrao
+        - personalizado
+        - tokens
+    ConfigPrompts:
+      type: object
+      description: Prompts (system) da geração de documentos por IA — contrato, termo e refino. Editáveis pela tela de admin.
+      properties:
+        contrato:
+          $ref: "#/components/schemas/ConfigPromptItem"
+        termo:
+          $ref: "#/components/schemas/ConfigPromptItem"
+        refino:
+          $ref: "#/components/schemas/ConfigPromptItem"
+      required:
+        - contrato
+        - termo
+        - refino
+    ConfigPromptsInput:
+      type: object
+      description: >-
+        Alteração dos prompts. Em cada campo: texto = customizar; null = restaurar
+        o padrão de código; ausente = não mexer.
+      properties:
+        contrato:
+          type: string
+          nullable: true
+          description: Novo texto do prompt de contrato, ou null para restaurar o padrão.
+        termo:
+          type: string
+          nullable: true
+          description: Novo texto do prompt de termo, ou null para restaurar o padrão.
+        refino:
+          type: string
+          nullable: true
+          description: Novo texto do prompt de refino, ou null para restaurar o padrão.
+    Medico:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        clinica:
+          type: string
+        padrao:
+          type: boolean
+          description: Médico sugerido ao cadastrar uma nova paciente (no máximo um).
+        ativo:
+          type: boolean
+          description: Quando false, some das listas de escolha, mas continua nos pacientes que já o tinham.
+        fotoUrl:
+          type: string
+          nullable: true
+          description: URL assinada (temporária) da foto do médico; null quando não há foto.
+        logoUrl:
+          type: string
+          nullable: true
+          description: URL assinada (temporária) do logo/marca do médico; null quando não há logo.
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - nome
+        - crm
+        - rqe
+        - clinica
+        - padrao
+        - ativo
+        - fotoUrl
+        - logoUrl
+        - createdAt
+        - updatedAt
+    MedicoCreate:
+      type: object
+      properties:
+        nome:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        clinica:
+          type: string
+          default: KCL
+        padrao:
+          type: boolean
+          default: false
+      required:
+        - nome
+    MedicoUpdate:
+      type: object
+      properties:
+        nome:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        clinica:
+          type: string
+        padrao:
+          type: boolean
+        ativo:
+          type: boolean
+    SecaoEtapa:
+      type: object
+      description: Etapa da linha do tempo. `offsetDias` é relativo à data da cirurgia (0 = no dia, null = sem data). `data` é preenchida só na página pública.
+      properties:
+        quando:
+          type: string
+        titulo:
+          type: string
+        descricao:
+          type: string
+        offsetDias:
+          type: integer
+          nullable: true
+        data:
+          type: string
+      required:
+        - quando
+        - titulo
+        - descricao
+    SecaoContato:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        valor:
+          type: string
+      required:
+        - rotulo
+        - valor
+    SecaoMedicamento:
+      type: object
+      description: Medicamento a suspender (marca + princípio ativo).
+      properties:
+        marca:
+          type: string
+        principio:
+          type: string
+      required:
+        - marca
+    SecaoGrupoMedicamentos:
+      type: object
+      description: Janela de suspensão. `offsetDias` é relativo à data da cirurgia (negativo = antes, null = sem data-limite). `data` (dd/mm) é preenchida só na página pública.
+      properties:
+        quando:
+          type: string
+        offsetDias:
+          type: integer
+          nullable: true
+        data:
+          type: string
+        medicamentos:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecaoMedicamento"
+      required:
+        - quando
+        - medicamentos
+    SecaoArquivo:
+      type: object
+      description: Metadados de arquivo anexado a uma seção. Os bytes vivem no bucket; `token` é opaco e também é a chave do objeto.
+      properties:
+        nomeArquivo:
+          type: string
+        tamanho:
+          type: integer
+        token:
+          type: string
+      required:
+        - nomeArquivo
+        - tamanho
+        - token
+    PagamentoPaciente:
+      type: object
+      description: Situação financeira exibida na página da paciente.
+      properties:
+        valorPago:
+          type: number
+        valorPendente:
+          type: number
+        dataPagamentoPendente:
+          type: string
+          nullable: true
+        quitado:
+          type: boolean
+      required:
+        - valorPago
+        - valorPendente
+        - dataPagamentoPendente
+        - quitado
+    SecaoConteudo:
+      type: object
+      description: Bloco editável da página pública. O campo `tipo` define quais campos opcionais são usados na renderização.
+      properties:
+        id:
+          type: string
+        tipo:
+          type: string
+          enum:
+            - linha_do_tempo
+            - lista
+            - documentos
+            - politica
+            - contatos
+            - texto
+            - preparo
+            - suspensao_medicamentos
+            - preparo_pele
+            - receituario_posop
+        titulo:
+          type: string
+        itens:
+          type: array
+          items:
+            type: string
+        corpo:
+          type: string
+        etapas:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecaoEtapa"
+        contatos:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecaoContato"
+        grupos:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecaoGrupoMedicamentos"
+        aviso:
+          type: string
+        arquivo:
+          $ref: "#/components/schemas/SecaoArquivo"
+        produtos:
+          type: array
+          description: preparo_pele — produtos do preparo da pele (nome, instrução, início e tag).
+          items:
+            $ref: "#/components/schemas/SecaoProduto"
+        medicacoes:
+          type: array
+          description: receituario_posop — medicações do receituário pós-operatório (nome, instrução, via).
+          items:
+            $ref: "#/components/schemas/SecaoMedicacao"
+      required:
+        - id
+        - tipo
+        - titulo
+    SecaoMedicacao:
+      type: object
+      description: receituario_posop — uma medicação do receituário pós-operatório. Todos os campos aceitam variáveis {{...}}.
+      properties:
+        nome:
+          type: string
+          description: 'Nome e dose, ex.: "Cefalexina 500mg".'
+        instrucao:
+          type: string
+          description: 'Posologia, ex.: "Tomar 1 comprimido de 6/6 horas por 7 dias".'
+        via:
+          type: string
+          description: 'Via de uso, exibida em itálico entre parênteses, ex.: "Via oral", "Uso ocular".'
+      required:
+        - nome
+        - instrucao
+        - via
+    SecaoProduto:
+      type: object
+      description: preparo_pele — um produto do preparo da pele. Todos os campos aceitam variáveis {{...}}.
+      properties:
+        nome:
+          type: string
+          description: 'Nome do produto e marca, ex.: "Blancy TX — Mantecorp".'
+        instrucao:
+          type: string
+          description: 'Instrução de uso, ex.: "Aplicar 1 camada na pele à noite, todos os dias".'
+        inicio:
+          type: string
+          description: 'Quando começar, ex.: "Iniciar 10 dias antes da cirurgia".'
+        tag:
+          type: string
+          description: 'Rótulo curto, ex.: "1 frasco · Uso tópico noturno".'
+      required:
+        - nome
+        - instrucao
+        - inicio
+        - tag
+    ConteudoPagina:
+      type: object
+      description: Conteúdo editável (padrão global ou override de paciente).
+      properties:
+        secoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecaoConteudo"
+      required:
+        - secoes
+    ConteudoPaciente:
+      type: object
+      description: Conteúdo efetivo da paciente e se ele é personalizado (override) ou herdado do padrão global.
+      properties:
+        secoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecaoConteudo"
+        personalizado:
+          type: boolean
+      required:
+        - secoes
+        - personalizado
+    PaginaPaciente:
+      type: object
+      description: Dados da página pública da paciente (território Dra. Karla).
+      properties:
+        primeiroNome:
+          type: string
+        nome:
+          type: string
+        medica:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        clinica:
+          type: string
+        especialidade:
+          type: string
+        procedimentos:
+          type: array
+          items:
+            type: string
+        dataCirurgia:
+          type: string
+        horario:
+          type: string
+        local:
+          type: string
+        enderecoLocal:
+          type: string
+        laser:
+          type: boolean
+        pagamento:
+          $ref: "#/components/schemas/PagamentoPaciente"
+        prazoDocumentos:
+          type: string
+        secoes:
+          type: array
+          description: Conteúdo editável já resolvido (variáveis substituídas, datas calculadas).
+          items:
+            $ref: "#/components/schemas/SecaoConteudo"
+        documentos:
+          type: array
+          description: PDFs anexados à paciente, disponíveis para abrir/baixar pelo link público.
+          items:
+            $ref: "#/components/schemas/DocumentoPublico"
+        pedidoExames:
+          description: Pedido de exames (PDF) da paciente, exibido na seção de procedimentos pré-operatórios. null quando não há.
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/PedidoExamesPublico"
+        receitaPreparoPele:
+          description: Receita de preparo da pele (PDF) da paciente, exibida na seção de preparo da pele. null quando não há.
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/ReceitaPreparoPelePublico"
+        receituarioPosop:
+          description: Receituário pós-operatório (PDF) da paciente, exibido na seção de receituário. null quando não há.
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/ReceituarioPosopPublico"
+        contratoStatus:
+          type: ["string", "null"]
+          enum: [assinado, pendente, recusado, indisponivel, null]
+          description: Último status conhecido do contrato (null quando sem contrato vinculado). A paciente só pode ver/baixar quando "assinado".
+        contratoAssinadoEm:
+          type: ["string", "null"]
+          description: Data ISO da assinatura quando o contrato está assinado.
+        medicoFotoUrl:
+          type: ["string", "null"]
+          description: URL assinada (temporária) da foto do médico que atende a paciente; null quando sem foto/médico.
+        medicoLogoUrl:
+          type: ["string", "null"]
+          description: URL assinada (temporária) do logo/marca do médico; null quando sem logo/médico.
+        contratoLinkAssinatura:
+          type: ["string", "null"]
+          description: Link para a paciente assinar o contrato (quando pendente). null quando assinado/sem link.
+        contratoPrazo:
+          type: ["string", "null"]
+          description: Prazo de assinatura do contrato (YYYY-MM-DD), para o aviso na página. null quando não há base para calcular.
+        termoStatus:
+          type: ["string", "null"]
+          enum: [assinado, pendente, recusado, indisponivel, null]
+          description: Último status conhecido do termo de consentimento (null quando sem termo vinculado).
+        termoAssinadoEm:
+          type: ["string", "null"]
+          description: Data ISO da assinatura do termo quando assinado.
+        termoLinkAssinatura:
+          type: ["string", "null"]
+          description: Link para a paciente assinar o termo (quando pendente). null quando assinado/sem link.
+        termoPrazo:
+          type: ["string", "null"]
+          description: Prazo de assinatura do termo (YYYY-MM-DD). null quando não há base para calcular.
+        tema:
+          type: ["string", "null"]
+          enum: [light, dark, null]
+          description: Preferência de tema escolhida pela paciente (null quando nunca escolheu → cai no temaPadrao).
+        temaPadrao:
+          type: string
+          enum: [light, dark]
+          description: Registro padrão da clínica, usado no primeiro acesso enquanto a paciente ainda não escolheu (tema null).
+        equipeAnestesia:
+          type: ["string", "null"]
+          description: Nome da equipe de anestesia vinculada à cirurgia (null quando não configurado).
+        equipeAnestesiaTelefone:
+          type: ["string", "null"]
+          description: Telefone da equipe de anestesia exibido na página da paciente (null quando não informado).
+      required:
+        - primeiroNome
+        - nome
+        - medica
+        - crm
+        - rqe
+        - clinica
+        - especialidade
+        - procedimentos
+        - dataCirurgia
+        - horario
+        - local
+        - enderecoLocal
+        - laser
+        - pagamento
+        - prazoDocumentos
+        - secoes
+        - documentos
+        - pedidoExames
+        - receitaPreparoPele
+        - receituarioPosop
+        - contratoStatus
+        - contratoAssinadoEm
+        - medicoFotoUrl
+        - medicoLogoUrl
+        - contratoLinkAssinatura
+        - contratoPrazo
+        - termoStatus
+        - termoAssinadoEm
+        - termoLinkAssinatura
+        - termoPrazo
+        - tema
+        - temaPadrao
+        - equipeAnestesia
+        - equipeAnestesiaTelefone
+    TemaPaciente:
+      type: object
+      description: Preferência claro/escuro da paciente, persistida por token.
+      properties:
+        tema:
+          type: string
+          enum: [light, dark]
+      required:
+        - tema
+    TemaPadrao:
+      type: object
+      description: Registro (claro/escuro) padrão da clínica para novas páginas de paciente.
+      properties:
+        tema:
+          type: string
+          enum: [light, dark]
+      required:
+        - tema
+    Vendedora:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        ativo:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - nome
+        - ativo
+        - createdAt
+        - updatedAt
+    VendedoraCreate:
+      type: object
+      properties:
+        nome:
+          type: string
+      required:
+        - nome
+    VendedoraUpdate:
+      type: object
+      properties:
+        nome:
+          type: string
+        ativo:
+          type: boolean
+    TimelineEvento:
+      type: object
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        tipo:
+          type: string
+        titulo:
+          type: string
+        descricao:
+          type: ["string", "null"]
+        autor:
+          type: ["string", "null"]
+          description: "Nome do membro da equipe que disparou o evento (ex.: lembrete por WhatsApp). Null em marcos automáticos e em eventos antigos."
+        automatico:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - pacienteId
+        - tipo
+        - titulo
+        - descricao
+        - autor
+        - automatico
+        - createdAt
+    NotaCreate:
+      type: object
+      properties:
+        titulo:
+          type: string
+        descricao:
+          type: string
+      required:
+        - titulo
+    LembreteCreate:
+      type: object
+      description: Quem está registrando o lembrete por WhatsApp, para creditar o follow-up.
+      properties:
+        autor:
+          type: string
+          description: Nome do membro da equipe que está enviando o lembrete.
+    VariavelContrato:
+      type: object
+      description: Variável {{...}} disponível nos modelos de contrato.
+      properties:
+        chave:
+          type: string
+        descricao:
+          type: string
+        essencialPara:
+          type: array
+          description: >-
+            Tipos de documento em que a variável é imprescindível. Marcar um
+            modelo como vigente sem ela exige confirmação explícita.
+          items:
+            type: string
+            enum: [contrato, termo]
+      required:
+        - chave
+        - descricao
+        - essencialPara
+    DocumentoContextoCampo:
+      type: object
+      description: Campo (rótulo + valor já formatado) da ficha de inputs do documento.
+      properties:
+        rotulo:
+          type: string
+        valor:
+          type: string
+      required:
+        - rotulo
+        - valor
+    DocumentoContextoGrupo:
+      type: object
+      description: Grupo de campos da ficha de inputs (Paciente, Procedimento, Valores).
+      properties:
+        chave:
+          type: string
+          enum:
+            - paciente
+            - procedimento
+            - valores
+        titulo:
+          type: string
+        campos:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentoContextoCampo"
+      required:
+        - chave
+        - titulo
+        - campos
+    DocumentoTipo:
+      type: string
+      description: Tipo do documento jurídico gerável.
+      enum:
+        - contrato
+        - termo
+    ContratoModelo:
+      type: object
+      description: Modelo-base por (tipo, procedimento), versionado.
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+        procedimento:
+          type: string
+        titulo:
+          type: string
+        corpo:
+          type: string
+        versao:
+          type: integer
+        vigente:
+          type: boolean
+        observacoes:
+          type: string
+          nullable: true
+        statusFabrica:
+          type: ["string", "null"]
+          enum: [igual, desatualizado, null]
+          description: >-
+            Como o texto atual (título/corpo) se compara ao modelo de fábrica
+            mais recente: "igual" (idêntico à fábrica), "desatualizado" (difere
+            da fábrica — editado pela equipe ou há atualização jurídica pendente)
+            ou null quando o modelo foi criado manualmente e não tem par de
+            fábrica para comparar.
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - tipo
+        - procedimento
+        - titulo
+        - corpo
+        - versao
+        - vigente
+        - observacoes
+        - statusFabrica
+        - createdAt
+        - updatedAt
+    ContratoModeloCreate:
+      type: object
+      properties:
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+          description: Tipo do documento (default "contrato").
+        procedimento:
+          type: string
+          minLength: 1
+        titulo:
+          type: string
+          minLength: 1
+        corpo:
+          type: string
+          minLength: 1
+        vigente:
+          type: boolean
+        observacoes:
+          type: string
+          nullable: true
+      required:
+        - procedimento
+        - titulo
+        - corpo
+    ContratoModeloUpdate:
+      type: object
+      properties:
+        procedimento:
+          type: string
+          minLength: 1
+        titulo:
+          type: string
+          minLength: 1
+        corpo:
+          type: string
+          minLength: 1
+        vigente:
+          type: boolean
+        observacoes:
+          type: string
+          nullable: true
+    ContratoModeloRestaurarPadrao:
+      type: object
+      properties:
+        confirmar:
+          type: boolean
+          description: >-
+            Confirma a sobrescrita quando o modelo está vigente ou foi editado.
+            Sem isso, a restauração de um modelo nessas condições responde 409.
+    ContratoModeloImportarInput:
+      type: object
+      description: >-
+        Aponta para um arquivo Word/PDF já enviado ao armazenamento (via URL
+        pré-assinada) para ser convertido em HTML.
+      properties:
+        objectPath:
+          type: string
+          minLength: 1
+          description: Caminho interno do objeto retornado por /storage/uploads/request-url.
+        nomeArquivo:
+          type: string
+          minLength: 1
+          description: Nome original do arquivo (usado p/ detectar o formato e sugerir título).
+        contentType:
+          type: string
+          description: Tipo MIME do arquivo (.docx ou application/pdf).
+      required:
+        - objectPath
+        - nomeArquivo
+    ContratoModeloImportado:
+      type: object
+      description: Resultado da conversão de um arquivo da clínica em corpo de modelo-base.
+      properties:
+        titulo:
+          type: string
+          description: Título sugerido a partir do nome do arquivo.
+        corpo:
+          type: string
+          description: Corpo do documento em HTML, pronto para edição no editor.
+      required:
+        - titulo
+        - corpo
+    RevisaoItem:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        status:
+          type: string
+          enum:
+            - ok
+            - atencao
+        observacao:
+          type: string
+        sugestao:
+          type: string
+      required:
+        - rotulo
+        - status
+        - observacao
+    RevisaoFrente:
+      type: object
+      properties:
+        chave:
+          type: string
+          enum:
+            - clausulas
+            - consistencia
+            - conformidade
+        titulo:
+          type: string
+        resumo:
+          type: string
+        itens:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevisaoItem"
+      required:
+        - chave
+        - titulo
+        - resumo
+        - itens
+    RelatorioRevisao:
+      type: object
+      description: Relatório estruturado da revisão de IA (apoio à decisão).
+      properties:
+        geradoEm:
+          type: string
+        modelo:
+          type: string
+        alertas:
+          type: integer
+        resumoGeral:
+          type: string
+        frentes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevisaoFrente"
+      required:
+        - geradoEm
+        - modelo
+        - alertas
+        - resumoGeral
+        - frentes
+    DecisaoRegiao:
+      type: object
+      description: >-
+        Decisão sobre uma região tipada do modelo (motor de cláusulas): qual
+        opção de uma variante, se um bloco opcional entrou, ou o gênero da
+        paciente. Snapshot auditável do que foi inferido e confirmado.
+      properties:
+        id:
+          type: string
+        tipo:
+          type: string
+          enum: [variante, opcional, genero]
+        rotulo:
+          type: string
+        valor:
+          type: string
+        opcoes:
+          type: array
+          items:
+            type: object
+            properties:
+              valor:
+                type: string
+              label:
+                type: string
+            required:
+              - valor
+              - label
+        incluido:
+          type: boolean
+        inferido:
+          oneOf:
+            - type: string
+            - type: boolean
+        confirmado:
+          type: boolean
+        editado:
+          type: boolean
+        origem:
+          type: string
+      required:
+        - id
+        - tipo
+        - rotulo
+        - confirmado
+        - editado
+        - origem
+    DecisaoRegiaoInput:
+      type: object
+      description: Escolha do operador para uma região (o servidor recomputa origem/inferido).
+      properties:
+        id:
+          type: string
+        tipo:
+          type: string
+          enum: [variante, opcional, genero]
+        valor:
+          type: string
+        incluido:
+          type: boolean
+      required:
+        - id
+        - tipo
+    PreviaContratoInput:
+      type: object
+      description: >-
+        Tipo do documento + overrides opcionais (valores em edição na ficha, ainda
+        não salvos) aplicados por cima dos dados salvos só na prévia.
+      properties:
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+        procedimentos:
+          type: array
+          items:
+            type: string
+        valorSinal:
+          type: string
+        valorPendente:
+          type: string
+        dataPagamentoPendente:
+          type: string
+          nullable: true
+        medica:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        clinica:
+          type: string
+        decisoes:
+          type: array
+          description: Decisões escolhidas (variantes/opcionais/gênero) a aplicar na prévia.
+          items:
+            $ref: "#/components/schemas/DecisaoRegiaoInput"
+      required:
+        - tipo
+    PreviaContrato:
+      type: object
+      description: >-
+        Prévia do documento resolvido para a paciente (variantes/opcionais/gênero
+        aplicados e numeração pronta), SEM persistir uma geração. Alimenta a
+        prévia ao vivo antes de "Gerar rascunho".
+      properties:
+        titulo:
+          type: string
+        corpo:
+          type: string
+        decisoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisaoRegiao"
+      required:
+        - titulo
+        - corpo
+        - decisoes
+    ContratoGeracao:
+      type: object
+      description: Uma geração de contrato da paciente (rascunho → aprovado → enviado).
+      properties:
+        id:
+          type: integer
+        pacienteId:
+          type: integer
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+        modeloId:
+          type: ["integer", "null"]
+        modeloProcedimento:
+          type: string
+        modeloVersao:
+          type: integer
+        titulo:
+          type: string
+        corpo:
+          type: string
+        arquivoObjectPath:
+          type: string
+          nullable: true
+          description: >-
+            Caminho do PDF no armazenamento quando o contrato foi enviado PRONTO
+            por fora (upload). null nas gerações produzidas pelo motor.
+        arquivoNome:
+          type: string
+          nullable: true
+          description: Nome original do arquivo enviado (upload). null nas gerações do motor.
+        signatarios:
+          type: array
+          nullable: true
+          description: >-
+            Signatários enviados à Autentique (papel + nome + e-mail). null
+            enquanto não enviado ou em envios antigos (signatário único).
+          items:
+            $ref: "#/components/schemas/SignatarioInput"
+        relatorioIa:
+          oneOf:
+            - $ref: "#/components/schemas/RelatorioRevisao"
+          nullable: true
+        decisoes:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/DecisaoRegiao"
+        origem:
+          type: string
+          enum:
+            - template
+            - upload
+            - ia
+          description: Via de criação (template = motor de cláusulas; upload = PDF pronto; ia = redigido por IA).
+        formularioIa:
+          oneOf:
+            - $ref: "#/components/schemas/FormularioDocumentoIa"
+          nullable: true
+          description: Snapshot do formulário da via de IA. null nas demais vias.
+        conversaIa:
+          type: array
+          nullable: true
+          description: Trilha das instruções de refino por IA aplicadas ao corpo.
+          items:
+            $ref: "#/components/schemas/TurnoConversaIa"
+        iaRevisadoEm:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - rascunho
+            - aprovado
+            - enviado
+            - falha_envio
+        aprovadoPor:
+          type: string
+          nullable: true
+        aprovadoEm:
+          type: string
+          nullable: true
+        autentiqueId:
+          type: string
+          nullable: true
+        erroEnvio:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - pacienteId
+        - tipo
+        - modeloId
+        - modeloProcedimento
+        - modeloVersao
+        - titulo
+        - corpo
+        - arquivoObjectPath
+        - arquivoNome
+        - signatarios
+        - relatorioIa
+        - decisoes
+        - origem
+        - formularioIa
+        - conversaIa
+        - iaRevisadoEm
+        - status
+        - aprovadoPor
+        - aprovadoEm
+        - autentiqueId
+        - erroEnvio
+        - createdAt
+        - updatedAt
+    FormularioDocumentoIa:
+      type: object
+      description: Dados coletados no formulário da via de criação por IA (contrato/termo).
+      properties:
+        nome:
+          type: string
+        cpf:
+          type: string
+        rg:
+          type: string
+        nascimento:
+          type: string
+        endereco:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        genero:
+          type: string
+          enum:
+            - feminino
+            - masculino
+        medica:
+          type: string
+        crm:
+          type: string
+        rqe:
+          type: string
+        cidadeMedica:
+          type: string
+        procedimentos:
+          type: array
+          items:
+            type: string
+        cidade:
+          type: string
+        data:
+          type: string
+        foro:
+          type: string
+        dataProcedimento:
+          type: string
+        localProcedimento:
+          type: string
+        valorTotal:
+          type: string
+        valorSinal:
+          type: string
+        valorSaldo:
+          type: string
+        vencimentoSaldo:
+          type: string
+        condicoesComerciais:
+          type: string
+        responsavelFinanceiro:
+          type: string
+        autorizaImagem:
+          type: boolean
+      required:
+        - nome
+        - genero
+        - medica
+        - procedimentos
+    TurnoConversaIa:
+      type: object
+      description: Um turno da conversa de refino por IA (auditoria).
+      properties:
+        instrucao:
+          type: string
+        criadoEm:
+          type: string
+      required:
+        - instrucao
+        - criadoEm
+    GerarIaInput:
+      type: object
+      description: Gera um documento redigido por IA a partir do formulário.
+      properties:
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+        formulario:
+          $ref: "#/components/schemas/FormularioDocumentoIa"
+      required:
+        - tipo
+        - formulario
+    RefinarIaInput:
+      type: object
+      description: Aplica uma instrução de alteração a um documento redigido por IA.
+      properties:
+        instrucao:
+          type: string
+          minLength: 1
+      required:
+        - instrucao
+    GerarContratoInput:
+      type: object
+      description: >-
+        Gera um rascunho a partir do modelo-base vigente do tipo pedido. Aceita as
+        decisões escolhidas no wizard e, opcionalmente, o CORPO já revisado/editado
+        pelo operador (etapa "Revisar texto"); quando presente, é persistido como o
+        texto do rascunho em vez de resolver o modelo do zero.
+      properties:
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+        corpo:
+          type: string
+          description: Corpo já revisado (etapa de texto). Ausente = resolver do modelo.
+        decisoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisaoRegiaoInput"
+      required:
+        - tipo
+    EditarContratoBody:
+      type: object
+      properties:
+        corpo:
+          type: string
+          minLength: 1
+      required:
+        - corpo
+    DefinirDecisoesBody:
+      type: object
+      properties:
+        decisoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisaoRegiaoInput"
+      required:
+        - decisoes
+    RevisarPreviaInput:
+      type: object
+      properties:
+        tipo:
+          $ref: "#/components/schemas/DocumentoTipo"
+        titulo:
+          type: string
+        corpo:
+          type: string
+          minLength: 1
+      required:
+        - tipo
+        - titulo
+        - corpo
+    AprovarContratoBody:
+      type: object
+      properties:
+        aprovadoPor:
+          type: string
+          minLength: 1
+          description: Nome de quem aprova (auditoria da etapa humana obrigatória).
+        email:
+          type: string
+          description: E-mail do signatário (legado, signatário único); sem ele a Autentique usa entrega por link.
+        signatarios:
+          type: array
+          description: >-
+            Signatários configurados no envio (contrato: paciente + representante
+            legal; termo: paciente + médico). Quando presente, tem precedência
+            sobre `email`.
+          items:
+            $ref: "#/components/schemas/SignatarioInput"
+      required:
+        - aprovadoPor
+    SignatarioInput:
+      type: object
+      properties:
+        papel:
+          type: string
+          description: "Papel do signatário: paciente | representante | medico."
+        nome:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          description: E-mail do signatário. Vazio = entrega por link (sem e-mail).
+      required:
+        - papel
+        - nome
+        - email

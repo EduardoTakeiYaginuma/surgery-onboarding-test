@@ -1,0 +1,70 @@
+PROMPT MESTRE — MVP "CONSOLE DO PRÉ-OP · KCL" (Lovable ou Replit)
+Cole tudo de uma vez. Português. Pagamentos FORA de escopo.
+================================================================
+
+Construa um app web chamado "Console do Pré-Op · KCL" para a clínica KCL (Dra. Karla Caetano Lobo). Objetivo, e SÓ ele: a secretária (Thalita) prepara o pós-fechamento de cirurgia e, em vez de até 8 envios manuais, envia 1 mensagem + 1 link — e a paciente recebe uma página única e calma. Dois alvos: eficiência da Thalita e experiência da paciente. NÃO construa pagamentos, cobrança, assinatura de contrato nem multiusuário.
+
+—— A. STACK ——
+[Lovable] React + Supabase (banco, login da equipe, storage, página pública hospedada). [Replit] Full-stack com Postgres e backend. Credenciais em secret no backend, nunca no front. A página da paciente é hospedada e acessível só por um token (sem login, sem dado pessoal na URL além do token). App em português, mobile-first.
+Banco é temporário do piloto: o schema espelha o CRM futuro (Twenty); deixe a camada de dados isolada para trocar a fonte depois sem reescrever a UI. Não criar ilha: a Thalita não redigita o que já existe nas fontes.
+
+—— B. MARCA (Branding Playbook Camada v02 — OBRIGATÓRIA) ——
+Paleta Meia-noite & Champanhe:
+- Meia-noite #0A1729 (cor-mãe: fundos/molduras) · Marinho-profundo #11294A (cards sobre escuro) · Brisa #97A3B4 (texto terciário, legendas, linhas) · Marfim #F4F1E8 (fundo claro do sistema) · Linho #EDE5D3 (calor consumer — fundo da página da paciente) · Champanhe #C9A96E (luxo EM FIO: hairlines, numerais, filetes — máx ~8%; em texto sobre claro use #8A6B33).
+- 4 regras de blindagem: base sempre #0A1729 (nunca navy médio); champanhe só em fio (nunca superfície nem texto corrido); serifa + marfim + densidade baixa; calor pela fotografia. SEM verde, SEM dourado-vivo, SEM gradiente, SEM emoji nas peças geradas pela marca.
+Tipografia: Spectral (300–500 + itálico) display/editorial · Archivo / Archivo Expanded (400–600) interface (Expanded em caps só em logo, rótulos, eyebrows) · IBM Plex Mono (400/500) — TODO número medido em mono (data, horário, valor, credencial, link). Carregue as fontes via <link> do Google Fonts.
+Símbolo Estratos: três barras à esquerda, larguras crescentes; a barra menor do topo, em champanhe, é a médica. Sólido na UI. Não centralizar nem inverter.
+Voz: contida e premium ("luxo é contenção", "prova antes de promessa"). Permitido: sócio-operador, estrutura, critério, prova, medido, precisão. Proibido: transforme, destrave, escale, revolucione, "agende já", "vagas limitadas", "o melhor do Brasil".
+
+⚠️ REGRA DE TERRITÓRIO (não violar):
+- O logo/marca da Camada NÃO entra em material da paciente. A página da paciente é território da Dra. Karla — identidade KCL/dela, SEM nenhum elemento Camada.
+- O Console (tela interna da Thalita) é território Camada: Estratos + wordmark "CAMADA" + eyebrow "OPERAÇÃO KCL · DRA. KARLA".
+- Crédito médico é inegociável na página da paciente (Res. CFM 2.336/23): nome · CRM/UF · RQE. Use placeholders "{a preencher}" — NUNCA invente CRM ou RQE.
+
+—— C. SCHEMA (mínimo do MVP) ——
+Tabela `pacientes`: nome, procedimento (default 'Blefaroplastia'), data_cirurgia (date), horario (text, default '06:00'), valor_sinal (numeric), laser (bool, default false), medica (default 'Dra. Karla Caetano Lobo'), crm (default '{a preencher}'), rqe (default '{a preencher}'), clinica (default 'KCL'), local (default 'Avant Moema Day Hospital'), estagio (default 'Fechamento'; valores: Fechamento → Enviado → Véspera → Cirurgia), token_publico (uuid), created_at, updated_at. Sem campos de pagamento ou assinatura.
+
+—— D. CONSOLE DA THALITA (território Camada) ——
+Topo: Estratos + "CAMADA" + eyebrow "OPERAÇÃO KCL · DRA. KARLA". Base Meia-noite, cards Marinho.
+Lista de pacientes + "Novo paciente". Formulário curto do fechamento (valores vêm do Slack; a Thalita confirma, não presume): nome, procedimento (default Blefaroplastia), data da cirurgia, horário (default 06:00, em mono), valor do sinal, e toggle "Laser CO₂ no dia?".
+Saídas:
+1) ENTREGA PRINCIPAL — "Mensagem única + link" pronta para o WhatsApp, com botão copiar. (O link é o da página hospedada daquela paciente.)
+2) FALLBACK recolhível — "Sequência manual": A6 → (anexar PDF da NF) → A7 → checklist de PDFs do Medx → A8, cada texto com botão copiar. Gate do laser: a "Receita pré-laser CO₂" só aparece no checklist se o toggle estiver marcado.
+   Checklist Medx: Pedido de exames pré-op (sempre) · Suspensão de medicamentos/Zenicare (sempre) · Receita pós-operatória, antecipada (sempre) · Receita pré-laser CO₂ (só com laser).
+3) ENVIOS OPERACIONAIS — bloco com os dados da paciente para colar, com aviso fixo: "Confirme a disponibilidade com a Alana (11 94215-3780) antes de qualquer envio." A4 = dados ao Centro Cirúrgico (Alana); A5 = dados à anestesia (Zenicare 11 95080-2525, duração 2h ou 3h). Texto canônico de A4/A5 vive no Notion — não inventar; montar só o bloco de dados.
+Ação "Aprovar e enviar": marca o estágio como 'Enviado' e deixa a mensagem + link prontos. (Não integrar WhatsApp agora; a Thalita cola no Chatwoot/WhatsApp.)
+
+—— E. PÁGINA DA PACIENTE (território Dra. Karla — SEM Camada) ——
+Fundo Linho, texto Meia-noite, champanhe só em fio, números em mono, títulos em Spectral. Mobile-first.
+- Cabeçalho: "KCL" + Dra. Karla Caetano Lobo como protagonista + crédito "Oculoplástica · CRM/SP {a preencher} · RQE {a preencher}" (mono). NENHUM logo Camada.
+- Hero: "Cirurgia confirmada" + "Olá, {primeiro nome}." + data e horário (mono) + local (Avant Moema Day Hospital — Av. Copacabana, 112, 3º andar, Edif. Medic Life).
+- Jornada (linha do tempo, datas calculadas a partir de data_cirurgia): agora — exames pré-operatórios; antes da cirurgia — suspensão de medicamentos (inclui jejum de 8h); entre D-10 e D-7 — Centro Cirúrgico e Zenicare entram em contato; véspera (D-1) — contato para o valor final dos honorários e reconfirmação; dia 0 ({data} · {horario}) — cirurgia no Avant Moema.
+- Documentos: Pedido de exames pré-op · Suspensão de medicamentos · Receita pós-operatória · Receita pré-laser CO₂ (só se laser).
+- Como se preparar: jejum de 8h; sem apliques, unhas de gel ou cílios postiços.
+- Política de remarcação (recolhível, texto A8 verbatim — ver abaixo).
+- Contatos: KCL · Dra. Karla Caetano Lobo; Anestesia · Zenicare (11) 95080-2525.
+
+—— F. TEXTOS (verbatim — não alterar) ——
+MENSAGEM ÚNICA (gerada pelo Console, sem emoji, voz contida):
+"Olá, {primeiro_nome}. Sua cirurgia com a Dra. Karla Caetano Lobo está confirmada para {data} às {horario}, no Avant Moema Day Hospital. Reunimos tudo o que você precisa — orientações, documentos e contatos — em um só lugar, com calma: {link}. Qualquer dúvida, é só responder por aqui."
+
+A6 — Confirmação de reserva:
+"Olá, {nome}. Tudo bem? ✅ Confirmação de Reserva: Recebemos o pagamento (R$ {sinal}) referente à reserva dos honorários da Dra. Karla. Com isso, sua cirurgia está oficialmente confirmada para: Data: {dd/mm/aaaa} · Horário: 06h00 · Local: 📍 Avant Moema Day Hospital — Av. Copacabana, 112, 3º andar (Edif. Medic Life)."
+
+A7 — Pré-operatório:
+"(Pré-Operatório) A seguir, enviaremos todos os PDFs: pedidos de exames e avaliações; lista de suspensão de medicações (conforme a anestesia); receita de pós-operatório (antecipada). 🗓️ Um dia antes da cirurgia: contato para a cobrança do valor final dos honorários. 💳 Taxas de terceiros (CC e Anestesia): o Centro Cirúrgico e a Zenicare (11 95080-2525) entram em contato 7–10 dias antes."
+
+A8 — Política de remarcação:
+">14 dias → sem custo · 7–14 dias → retém 50% do sinal · <7 dias ou não comparecimento → retém 100% do sinal. Cobre custos de reserva de CC e equipe já alocados. Emergência médica comprovada → avaliação individual."
+
+—— G. OPERAÇÃO REAL (não presumir) ——
+Gatilho: fechamento de cirurgia (sinal pago). SLA: confirmação + documentos no mesmo dia. Cirurgia padrão 06h00 no Avant Moema Day Hospital. Disponibilidade do CC → Alana (11 94215-3780); fora do padrão → Bruna; anestesia → Zenicare (11 95080-2525), 2h ou 3h. Regra: confirmar com a Alana ANTES de qualquer envio.
+Fontes da verdade (para depois ligar no spine; nunca presumir): valores no Slack (variam por paciente), datas na Agenda Google, NF na planilha, clínico/docs no Medx.
+
+—— H. REGRAS INEGOCIÁVEIS ——
+- Marca v02 à risca; regra de território (sem Camada na página da paciente; Dra. Karla protagonista; crédito médico obrigatório).
+- Nunca inventar credencial (CRM/RQE), link ou valor — usar placeholder "{a preencher}" e buscar na fonte.
+- Pagamentos, cobrança e assinatura ficam FORA deste MVP.
+- A8 é política — manter verbatim.
+- Não criar ilha de dados; schema espelha o Twenty para integração futura.
+Ao final, gere uma paciente de exemplo (blefaroplastia) para testar o fluxo ponta a ponta, e diga o que preciso preencher (CRM-SP e RQE da Dra. Karla).

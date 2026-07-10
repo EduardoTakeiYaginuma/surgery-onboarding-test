@@ -1,0 +1,91 @@
+# Prompt — Reestilizar a página pública do paciente (north-star)
+
+> Cole isto no agente do Replit, **com os dois arquivos anexados**:
+> `pagina-publica-paciente.html` (north-star, referência visual) e este `.md`.
+
+---
+
+## Contexto
+
+Você está no monorepo **Console-Operacional-Camada-Clinic**, app `@workspace/console-kcl`.
+A página pública da paciente já existe e já é **data-driven**:
+
+- Rota: `/p/:token` → `artifacts/console-kcl/src/pages/public-patient.tsx`
+- Tokens de marca já definidos em `artifacts/console-kcl/src/index.css` (tema `.paciente` / `.paciente-dark`, vars `--pp-bg --pp-surface --pp-text --pp-accent --pp-strong --pp-on-strong`, fontes Spectral/Archivo/IBM Plex Mono).
+- Dados vêm do modelo `PaginaPaciente` via `useObterPaginaPaciente` (já implementado).
+
+**Tarefa: reestilizar `public-patient.tsx` (e adicionar helpers em `index.css`) para bater com o north-star anexo (`pagina-publica-paciente.html`).**
+**NÃO é rebuild.** Reuse os tokens e os dados que já existem.
+
+## Regras duras (não violar)
+
+1. **NÃO alterar a API / contratos Orval** (`lib/api-zod`, `lib/api-spec`, `lib/api-client-react`). Todos os dados necessários já existem em `PaginaPaciente`.
+2. **NÃO tocar** no cockpit (`console-*.tsx`), no `mobile-kcl` nem no `api-server`.
+3. **NÃO redefinir** os tokens de cor/fonte — só consumir as vars existentes.
+4. Ao final, `pnpm --filter @workspace/console-kcl typecheck` deve passar.
+5. Voz/marca Camada: nunca usar transforme/escale/revolucione/disruptivo/agende já/vagas limitadas/nº 1/🚀. Champanhe só em fio (linhas, numerais, filetes) — nunca como superfície ou texto corrido; sobre fundo claro usar `--pp-accent`. Nome sempre por extenso ("Camada"). Foto sempre com véu Meia-noite ≥70%.
+
+## Mapeamento de dados (tudo já existe em `PaginaPaciente`)
+
+- Contagem regressiva → `dataCirurgia` (`differenceInCalendarDays`, já no arquivo).
+- Médica → `medica`, `crm`, `rqe`, `clinica`.
+- Procedimento → `procedimentos[]`, `dataCirurgia`, `horario`.
+- Local + mapa → `local`, `enderecoLocal` + helper `linkMapa()` (já existe).
+- **Status de honorários** → `pagamento.quitado` (true = "pagamento confirmado", com check) / quando false, mostrar "pagar até {pagamento.dataPagamentoPendente}". (`PagamentoPaciente { valorPago, valorPendente, dataPagamentoPendente, quitado }`.)
+- Contrato → `contratoStatus` (`assinado`/`pendente`) + `contratoAssinadoEm`.
+- Documentos pra baixar → `documentos[]` (`DocumentoPublico { token, rotulo, nomeArquivo, tamanho }`) via `acessarDocumento()` (já existe).
+- Blocos editáveis (Preparo, etc.) → `secoes[]` via `<SecoesPublicas>` (já existe).
+- Pós-op → `<PosOpPublico>` (já existe).
+
+## Mudanças de FRONT-END (sem dados novos)
+
+### A. Marcas de identidade (SVG inline)
+1. **Traçado da Blefaroplastia** no **topo direito** da capa (sobre fundo escuro, traço claro):
+```html
+<svg width="62" height="30" viewBox="0 0 64 30" aria-hidden="true">
+  <path d="M6 19 Q32 4 58 19" fill="none" stroke="#F4F1E8" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 24 Q32 16.5 48 24" fill="none" stroke="#C9A96E" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="0.1 4.2"/>
+</svg>
+```
+2. **Selo C** no card da médica + crédito **"Médica-parceira · Camada"** (mono):
+```html
+<svg width="38" height="38" viewBox="0 0 100 100" aria-hidden="true">
+  <circle cx="50" cy="50" r="46" fill="none" stroke="#C9A96E" stroke-width="2.4"/>
+  <circle cx="50" cy="50" r="39.5" fill="none" stroke="#C9A96E" stroke-width="1" opacity=".6"/>
+  <text x="50" y="61" text-anchor="middle" font-family="Spectral,serif" font-size="46" fill="currentColor">C</text>
+  <rect x="40.5" y="70" width="9"  height="2.3" fill="#8A6B33"/>
+  <rect x="40.5" y="75" width="15" height="2.3" fill="#8A6B33"/>
+</svg>
+```
+3. **Rodapé**: lockup Camada com símbolo **Estratos** (3 barras crescentes, topo champanhe) + palavra "Camada". **NÃO** escrever "Instituto da Blefaroplastia" no rodapé.
+```html
+<svg width="38" height="29" viewBox="0 0 40 30" aria-hidden="true">
+  <rect x="0" y="0"    width="16" height="6.4" fill="#C9A96E"/>
+  <rect x="0" y="11.6" width="27" height="6.4" fill="#F4F1E8"/>
+  <rect x="0" y="23.2" width="39" height="6.4" fill="#97A3B4"/>
+</svg>
+```
+
+### B. Hierarquia / ordem (foco no que o paciente precisa primeiro)
+Reordenar em quatro blocos, secundário colapsado:
+1. **Capa** — contagem ("faltam N dias"), Traçado no topo direito.
+2. **Médica** — foto (véu ≥70%), nome, CRM/RQE, Selo C + "Médica-parceira · Camada".
+3. **Agora** — ação pendente (assinar TCLE) em card escuro de destaque + confirmações agrupadas (contrato assinado ✓, honorários ✓ ou "pagar até X") + botão **WhatsApp** "Falar com a equipe".
+4. **Sua cirurgia** — data, horário, local (com "ver no mapa").
+5. **Preparo** — `secoes[]` + **documentos como botões grandes** (alvo de toque maior; usar `rotulo`, formatar `tamanho`).
+6. **Depois** — pós-op.
+7. **Secundário, em `<details>`/acordeão**: equipes & taxas, política de remarcação.
+
+### C. Estado "tudo concluído"
+Quando `contratoStatus === 'assinado'` e `pagamento.quitado` e nada pendente → o bloco "Agora" vira um estado calmo "Tudo certo para a sua cirurgia" (sem card escuro de ação), só com as confirmações.
+
+## Itens SEM campo no modelo — NÃO criar schema novo
+Equipes (Avant + Zenicare entram em contato 7–10 dias antes), política de remarcação e WhatsApp do time **não existem** em `PaginaPaciente`. Renderize via `secoes[]` (conteúdo editável que a clínica já preenche no Console) — crie/aceite seções com esses rótulos. Se precisar de placeholder temporário, deixe **claramente marcado com `TODO`** e um link `wa.me` placeholder. Não invente endpoints.
+
+## Referência visual
+`pagina-publica-paciente.html` é o alvo de layout, tom e marca. Não copie o HTML literal nem inline base64 — traduza para o React/Tailwind do projeto, consumindo dados de `PaginaPaciente` e as vars `--pp-*`.
+
+## Entregar
+- `public-patient.tsx` reestilizado, `index.css` com helpers se necessário.
+- `pnpm --filter @workspace/console-kcl typecheck` verde.
+- Um resumo curto do que mudou e de quais `secoes[]` a clínica precisa preencher (equipes, política).

@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+web-build/
+static-build/
+.expo/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Test / e2e artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+coverage/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+
+# OS
+.DS_Store
+*.pem
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Docs (existente)
+/docs
+
+/contracts_eg
+/termo_eg

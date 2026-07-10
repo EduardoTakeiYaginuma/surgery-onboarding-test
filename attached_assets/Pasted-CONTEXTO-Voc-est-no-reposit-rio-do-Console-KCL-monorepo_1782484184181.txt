@@ -1,0 +1,61 @@
+CONTEXTO
+Você está no repositório do Console KCL — monorepo pnpm: apps em artifacts/ (api-server = Express 5; console-kcl = React + wouter + shadcn/ui), schema Drizzle em lib/db/src/schema, contrato OpenAPI em lib/api-spec com codegen Orval (hooks React em lib/api-client-react). A tabela pacientes já tem o campo codigoPublico (token público) e já existe uma página pública do paciente. Mantenha tudo que já existe; isto é um acréscimo.
+
+OBJETIVO
+Adicionar o módulo de acompanhamento PÓS-OPERATÓRIO. Ele tem dois lados:
+- STAFF (cockpit, autenticado): cria/agenda check-ins por dia, vê o progresso, marca status, sinaliza atenção e anota observações.
+- PACIENTE (página pública, via token, SEM login): vê seus próprios check-ins e envia fotos quando o check-in for do tipo "foto".
+
+1) SCHEMA — lib/db/src/schema/posop.ts
+Crie a tabela "posop_checkins":
+- id            serial PK
+- paciente_id   integer NOT NULL, FK → pacientes.id (onDelete: "cascade")
+- dia           text NOT NULL            // ex.: "D+1", "D+7", "D+30"
+- tipo          text NOT NULL            // "foto" | "retorno" | "nps"
+- status        text NOT NULL default "pendente"   // "pendente" | "concluido" | "atrasado"
+- foto_url      text                     // objeto no storage; preenchido quando o paciente envia a foto
+- nota          text                     // observação clínica/operacional do staff
+- sinal_atencao boolean default false    // flag de triagem: marca check-ins que precisam de atenção humana
+- created_at    timestamptz NOT NULL default now()
+Gere os schemas Zod com drizzle-zod (insertCheckinSchema omitindo id e created_at) e exporte os tipos Checkin / InsertCheckin. Registre a tabela no schema/index.ts. Rode o db push.
+
+2) STORAGE DE FOTOS (dependência)
+As fotos vão para Object Storage. Se já existir uma camada de storage (lib/storage.ts / storagePdf.ts) use-a. Se NÃO existir, crie artifacts/api-server/src/lib/storage.ts com um helper mínimo de upload e URL assinada (use @google-cloud/storage; envs DEFAULT_OBJECT_STORAGE_BUCKET_ID, PRIVATE_OBJECT_DIR). Fotos ficam em ${PRIVATE_OBJECT_DIR}/fotos/${pacienteId}/${checkinId}-${timestamp}.jpg. Aceite apenas image/jpeg e image/png; fail-closed (503 com mensagem clara) se o storage não estiver configurado.
+
+3) BACKEND — endpoints
+Adicione na rota de pacientes (artifacts/api-server/src/routes/pacientes.ts) e atualize o OpenAPI em lib/api-spec:
+
+Staff (autenticado via Clerk, se já houver auth; senão deixe protegível):
+- GET    /pacientes/:id/checkins            → lista os check-ins do paciente, ordenados por dia.
+- POST   /pacientes/:id/checkins            → cria um check-in { dia, tipo, status?, nota? }.
+- PATCH  /pacientes/:id/checkins/:checkinId → atualiza status, nota e sinal_atencao.
+- (opcional) POST /pacientes/:id/checkins/seed-padrao → cria o conjunto padrão de check-ins pós-op (ex.: D+1 foto, D+7 foto, D+7 retorno, D+30 nps). Use isso ao concluir uma cirurgia.
+
+Público por token (SEM auth — mesmo mecanismo do codigoPublico já usado na página pública):
+- GET  /pacientes/by-token/:token/checkins                    → lista os check-ins do paciente dono daquele token. 404 para token inválido/malformado (nunca 500).
+- POST /pacientes/by-token/:token/checkins/:checkinId/foto    → o PACIENTE envia a foto de um check-in tipo "foto": valida o token, valida que o check-in pertence ao paciente e é do tipo "foto", sobe a imagem no storage, grava foto_url e marca status="concluido". Rejeite tipos diferentes de "foto".
+
+Validação com os schemas Zod gerados. Rode `pnpm --filter @workspace/api-spec run codegen` para expor os hooks no front.
+
+4) FRONTEND — lado STAFF (console-kcl, tema ESCURO)
+Na tela de detalhe do paciente (console-patient), adicione uma seção/aba "Pós-op":
+- Linha do tempo dos check-ins agrupados por dia (D+1, D+7, ...), cada um mostrando tipo, status, miniatura da foto (se houver, via URL assinada) e a nota.
+- Ações por check-in: marcar status, editar nota, alternar "sinal de atenção". Check-ins com sinal_atencao=true ganham destaque visual (fio/realce em champanhe, conforme v02).
+- Botão "Gerar check-ins pós-op padrão" (chama o seed-padrao) e botão "Adicionar check-in" manual.
+- Estados: skeleton no carregamento, empty state ("Nenhum check-in ainda"), toast em cada mutação.
+
+5) FRONTEND — lado PACIENTE (página pública, tema CLARO)
+Na página pública do paciente (a que já existe, acessada por codigoPublico), adicione um bloco "Meu acompanhamento":
+- Lista os check-ins do paciente (via /by-token/:token/checkins).
+- Para check-ins tipo "foto" ainda pendentes, mostra um uploader simples (input de imagem + preview) que envia para /by-token/:token/checkins/:checkinId/foto. Após enviar, atualiza o estado para concluído e dá feedback.
+- Para tipo "retorno" e "nps", apenas exibe (NPS pode ser fase futura). Nada de dados sensíveis de outros pacientes; o token só dá acesso ao próprio.
+
+RESTRIÇÃO DE MARCA (Branding v02) — toda UI nova:
+Paleta Meia-noite #0A1729 / Marinho #11294A / Brisa #97A3B4 / Marfim #F4F1E8 / Champanhe #C9A96E (champanhe só em fio/numerais/realce, nunca como superfície ou texto corrido). Fontes: Spectral (títulos), Archivo / Archivo Expanded (UI e rótulos), IBM Plex Mono (números/datas como "D+7"). Cockpit em tema escuro; página pública do paciente em tema claro.
+
+TESTES (vitest + supertest, já configurados)
+- Backend: criação/listagem de check-in (staff); upload por token (caminho feliz + token inválido = 404 + tipo errado rejeitado); update de status/nota/sinal_atencao.
+- Garanta `pnpm run typecheck` limpo ao final.
+
+ENTREGA
+Migrations aditivas (não destrua nada). Documente as envs novas no replit.md. Ao final, descreva em 5 linhas o que foi criado e quais endpoints subiram.
