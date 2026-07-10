@@ -1,0 +1,53 @@
+# Render Blueprint — backend (api-server / Express).
+# Render → New → Blueprint → aponte para este repo. O Render injeta PORT
+# automaticamente (o app lê process.env.PORT) — NÃO defina PORT aqui.
+# As variáveis com `sync: false` NÃO vão para o repositório: você as preenche
+# no painel do Render (copie os valores do seu .env local).
+services:
+  - type: web
+    name: surgery-onboarding-test-api
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && node artifacts/api-server/build.mjs
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
+      - key: BASE_PATH
+        sync: false
+      - key: AUTENTIQUE_API_TOKEN
+        sync: false
+      - key: AUTENTIQUE_WEBHOOK_SECRET
+        sync: false
+      - key: TOKEN_LUMEXA
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        sync: false
+      - key: SUPABASE_OBJECT_BUCKET
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET_LISTAS
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET_EXAMES
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET_RECEITAS_PELE
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET_RECEITUARIOS
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET_ASSINADOS
+        sync: false
+      - key: OPEN_AI_KEY
+        sync: false
+      - key: AI_INTEGRATIONS_OPENAI_BASE_URL
+        sync: false
+      - key: AI_INTEGRATIONS_OPENAI_API_KEY
+        sync: false
+      - key: CONTRATO_REVISAO_MODELO
+        sync: false
