@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://SUBSTITUA-PELO-HOST-DO-BACKEND/api/:path*"
+      "destination": "https://surgery-onboarding-test-api.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
