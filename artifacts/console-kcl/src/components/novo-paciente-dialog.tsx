@@ -23,7 +23,7 @@ import {
 } from "@workspace/api-client-react";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Plus, X, HelpCircle, Eye, FileText, UploadCloud, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, X, HelpCircle, Eye, FileText, UploadCloud, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { PROCEDIMENTOS_SUGESTOES } from "@/lib/procedimentos-sugestoes";
@@ -137,7 +137,13 @@ export const formSchema = z.object({
     .string()
     .min(1, "Escolha a data da cirurgia.")
     .refine((v) => !dataNoPassado(v), "A data da cirurgia não pode estar no passado."),
-  horario: z.string().min(1, "Informe o horário da cirurgia."),
+  horario: z
+    .string()
+    .min(1, "Informe o horário da cirurgia.")
+    .refine(
+      (v) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
+      "Horário inválido — use HH:MM (00:00 a 23:59).",
+    ),
   valorSinal: z.coerce.number().min(0, "Valor inválido"),
   valorPendente: z.coerce.number().min(0, "Valor inválido").default(0),
   dataPagamentoPendente: z.string().default(""),
@@ -197,8 +203,16 @@ const MSG_CLS = "font-mono text-xs text-red-400";
 // Rótulo miúdo dos campos dentro do card de detalhes do local escolhido.
 const DETALHE_LABEL_CLS = "text-muted-foreground/60 font-expanded text-[9px] tracking-widest uppercase mb-0.5";
 
-const HORAS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-const MINUTOS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+/**
+ * Formata o que a pessoa digita no horário para `HH:MM` conforme digita:
+ * mantém só dígitos (até 4) e insere o `:` depois da hora. Ex.: `1430` → `14:30`.
+ * Para hora de um dígito, digitar com zero à esquerda (`0930` → `09:30`).
+ */
+function formatarHorario(valor: string): string {
+  const d = valor.replace(/\D/g, "").slice(0, 4);
+  if (d.length <= 2) return d;
+  return `${d.slice(0, 2)}:${d.slice(2)}`;
+}
 
 function parseDataValor(valor: string): Date | undefined {
   if (!valor) return undefined;
@@ -270,98 +284,6 @@ function SeletorData({
           }}
           classNames={{ today: "text-accent font-medium" }}
         />
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/**
- * Seletor de horário em popover (colunas de hora e minuto), no padrão Camada —
- * champagne só no numeral/fio do item ativo. Guarda o valor como `HH:mm`.
- */
-function SeletorHorario({
-  value,
-  onChange,
-  placeholder = "Escolher horário",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  const [aberto, setAberto] = useState(false);
-  const [hora, minuto] = value ? value.split(":") : ["", ""];
-  const horaAtivaRef = useRef<HTMLButtonElement>(null);
-  const minutoAtivoRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!aberto) return;
-    // Rola até o valor já selecionado ao abrir, deixando claro que há mais opções.
-    const t = window.setTimeout(() => {
-      horaAtivaRef.current?.scrollIntoView({ block: "center" });
-      minutoAtivoRef.current?.scrollIntoView({ block: "center" });
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [aberto]);
-  return (
-    <Popover open={aberto} onOpenChange={setAberto}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Escolher horário da cirurgia"
-          className="flex w-full items-center justify-between gap-2 bg-card border border-transparent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-none h-12 px-3 font-mono text-sm text-foreground"
-        >
-          <span className={value ? "text-foreground" : "text-muted-foreground/50"}>
-            {value || placeholder}
-          </span>
-          <Clock className="w-4 h-4 text-muted-foreground/60 shrink-0" strokeWidth={1.5} />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-0 bg-popover border-border rounded-none">
-        <div className="flex divide-x divide-border">
-          <div className="scroll-visivel flex flex-col max-h-56 overflow-y-auto px-1 py-1 w-16">
-            <span className="font-expanded text-[8px] tracking-widest uppercase text-muted-foreground/60 text-center py-1 sticky top-0 bg-popover">Hora</span>
-            {HORAS.map((hh) => {
-              const ativo = hh === hora;
-              return (
-                <button
-                  key={hh}
-                  ref={ativo ? horaAtivaRef : undefined}
-                  type="button"
-                  onClick={() => onChange(`${hh}:${minuto || "00"}`)}
-                  className={cn(
-                    "font-mono text-sm py-1.5 text-center transition-colors border-l-2",
-                    ativo
-                      ? "border-accent text-accent bg-card"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-card",
-                  )}
-                >
-                  {hh}
-                </button>
-              );
-            })}
-          </div>
-          <div className="scroll-visivel flex flex-col max-h-56 overflow-y-auto px-1 py-1 w-16">
-            <span className="font-expanded text-[8px] tracking-widest uppercase text-muted-foreground/60 text-center py-1 sticky top-0 bg-popover">Min</span>
-            {MINUTOS.map((mm) => {
-              const ativo = mm === minuto;
-              return (
-                <button
-                  key={mm}
-                  ref={ativo ? minutoAtivoRef : undefined}
-                  type="button"
-                  onClick={() => onChange(`${hora || "00"}:${mm}`)}
-                  className={cn(
-                    "font-mono text-sm py-1.5 text-center transition-colors border-l-2",
-                    ativo
-                      ? "border-accent text-accent bg-card"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-card",
-                  )}
-                >
-                  {mm}
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </PopoverContent>
     </Popover>
   );
@@ -449,9 +371,49 @@ function CamposPaciente({
   medicos: Medico[];
 }) {
   const medicoPadrao = medicos.find((m) => m.padrao);
+  // Origem do cadastro: buscar no CRM (Twenty) ou cadastrar só localmente.
+  const [origem, setOrigem] = useState<"crm" | "manual">("crm");
+
+  function escolherOrigem(nova: "crm" | "manual") {
+    setOrigem(nova);
+    // Cadastro manual é local: desfaz qualquer vínculo com o CRM para não
+    // enviar/associar nada ao Twenty.
+    if (nova === "manual") {
+      form.setValue("twentyContactId", "", { shouldDirty: true });
+    }
+  }
+
   return (
     <>
-      <BuscaContatoTwenty form={form} />
+      <div className="flex border border-border">
+        {([
+          ["crm", "Buscar no CRM"],
+          ["manual", "Cadastrar manualmente"],
+        ] as const).map(([valor, rotulo]) => (
+          <button
+            key={valor}
+            type="button"
+            onClick={() => escolherOrigem(valor)}
+            aria-pressed={origem === valor}
+            className={cn(
+              "flex-1 h-11 font-expanded text-[10px] tracking-widest uppercase transition-colors",
+              origem === valor
+                ? "bg-card text-foreground border-b-2 border-accent"
+                : "bg-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {rotulo}
+          </button>
+        ))}
+      </div>
+      {origem === "crm" ? (
+        <BuscaContatoTwenty form={form} />
+      ) : (
+        <p className="border border-border bg-card/40 p-4 text-xs font-light text-muted-foreground">
+          Cadastro local — os dados preenchidos abaixo ficam só neste sistema e
+          não são enviados ao CRM (Twenty).
+        </p>
+      )}
       <FormField
         control={form.control}
         name="vendedoraId"
@@ -936,9 +898,16 @@ function CamposCirurgia({
             <FormItem>
               <FormLabel className={LABEL_CLS}>Horário</FormLabel>
               <FormControl>
-                <SeletorHorario value={field.value} onChange={field.onChange} />
+                <Input
+                  inputMode="numeric"
+                  placeholder="HH:MM"
+                  maxLength={5}
+                  className={cn(INPUT_CLS, "font-mono")}
+                  value={field.value}
+                  onChange={(e) => field.onChange(formatarHorario(e.target.value))}
+                />
               </FormControl>
-              <FieldHint>Horário marcado da cirurgia.</FieldHint>
+              <FieldHint>Horário marcado da cirurgia — digite no formato HH:MM (ex.: 14:30).</FieldHint>
               <FormMessage className={MSG_CLS} />
             </FormItem>
           )}
