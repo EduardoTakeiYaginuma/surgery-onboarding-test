@@ -1139,6 +1139,22 @@ export default function ConsoleHome() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-4">
                           <h3 className="font-serif text-2xl text-foreground group-hover:text-accent transition-colors">{p.nome}</h3>
+                          {p.leituraConfirmadaEm && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="inline-flex items-center justify-center w-5 h-5 border border-accent/60 text-accent cursor-help shrink-0"
+                                  aria-label="Paciente confirmou que leu as informações"
+                                >
+                                  <Check className="w-3 h-3" strokeWidth={2.5} />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[240px] bg-card border border-accent/40 text-foreground rounded-none font-light text-xs leading-relaxed">
+                                <span className="block font-medium mb-1">Confirmou a leitura</span>
+                                A paciente marcou "Li e estou ciente" em {format(parseISO(p.leituraConfirmadaEm), "dd/MM/yyyy 'às' HH:mm")}.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Badge variant="outline" className={`rounded-none font-expanded text-[9px] uppercase tracking-widest px-2.5 py-0.5 border cursor-help ${corDoMarco(p.marcoAtual)}`}>

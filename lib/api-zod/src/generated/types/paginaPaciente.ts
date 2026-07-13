@@ -8,6 +8,7 @@
 import type { DocumentoPublico } from './documentoPublico';
 import type { PagamentoPaciente } from './pagamentoPaciente';
 import type { PaginaPacienteContratoStatus } from './paginaPacienteContratoStatus';
+import type { PaginaPacientePreparoConcluido } from './paginaPacientePreparoConcluido';
 import type { PaginaPacienteTema } from './paginaPacienteTema';
 import type { PaginaPacienteTemaPadrao } from './paginaPacienteTemaPadrao';
 import type { PaginaPacienteTermoStatus } from './paginaPacienteTermoStatus';
@@ -112,4 +113,11 @@ export interface PaginaPaciente {
      * @nullable
      */
   equipeAnestesiaTelefone: string | null;
+  /** Itens do checklist de preparo já marcados pela paciente (mapa chave→true), persistidos no servidor. Objeto vazio quando nada foi marcado. */
+  preparoConcluido: PaginaPacientePreparoConcluido;
+  /**
+     * Data/hora ISO em que a paciente confirmou ter lido todas as informações ("Li e estou ciente"). null quando ainda não confirmou.
+     * @nullable
+     */
+  leituraConfirmadaEm: string | null;
 }

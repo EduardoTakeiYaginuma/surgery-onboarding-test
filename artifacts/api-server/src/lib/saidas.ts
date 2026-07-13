@@ -182,6 +182,11 @@ export function pacienteParaDTO(
     retorno1Em: p.retorno1Em ? p.retorno1Em.toISOString() : null,
     retorno2Em: p.retorno2Em ? p.retorno2Em.toISOString() : null,
     retorno3Em: p.retorno3Em ? p.retorno3Em.toISOString() : null,
+    // Sinais da interação da paciente na página pública, exibidos no dashboard.
+    leituraConfirmadaEm: p.leituraConfirmadaEm
+      ? p.leituraConfirmadaEm.toISOString()
+      : null,
+    preparoConcluido: p.preparoConcluido ?? {},
   };
 }
 
@@ -547,5 +552,12 @@ export function montarPaginaPaciente(
     temaPadrao,
     equipeAnestesia: p.equipeAnestesia ?? null,
     equipeAnestesiaTelefone: p.equipeAnestesiaTelefone ?? null,
+    // Checklist de preparo já marcado (mapa chave→true) e confirmação de
+    // leitura — para a página hidratar a done-list do servidor e refletir o
+    // estado do "Li e estou ciente".
+    preparoConcluido: p.preparoConcluido ?? {},
+    leituraConfirmadaEm: p.leituraConfirmadaEm
+      ? p.leituraConfirmadaEm.toISOString()
+      : null,
   };
 }

@@ -89,7 +89,9 @@ export const ListarPacientesResponseItem = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 })
 export const ListarPacientesResponse = zod.array(ListarPacientesResponseItem)
 
@@ -203,7 +205,9 @@ export const CriarPacienteResponse = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 }),
   "saidas": zod.object({
   "link": zod.string(),
@@ -1797,7 +1801,9 @@ export const ObterPacienteResponse = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 }),
   "saidas": zod.object({
   "link": zod.string(),
@@ -1934,7 +1940,9 @@ export const AtualizarPacienteResponse = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 }),
   "saidas": zod.object({
   "link": zod.string(),
@@ -2052,7 +2060,9 @@ export const AprovarPacienteResponse = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 }),
   "saidas": zod.object({
   "link": zod.string(),
@@ -2155,7 +2165,9 @@ export const MarcarMarcoManualResponse = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 }),
   "saidas": zod.object({
   "link": zod.string(),
@@ -2247,7 +2259,9 @@ export const ListarPacientesArquivadosResponseItem = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 })
 export const ListarPacientesArquivadosResponse = zod.array(ListarPacientesArquivadosResponseItem)
 
@@ -2329,7 +2343,9 @@ export const ArquivarPacienteResponse = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 }),
   "saidas": zod.object({
   "link": zod.string(),
@@ -2448,7 +2464,9 @@ export const RestaurarPacienteResponse = zod.object({
   "retorno3Em": zod.string().nullable().describe('Data\/hora ISO do 3º retorno (marcado manualmente). null quando não marcado.'),
   "abriu": zod.boolean().optional().describe('Indica se a paciente já abriu o link ao menos uma vez. Presente apenas na listagem (agregado); ausente no detalhe.'),
   "lembreteEnviadoEm": zod.string().nullish().describe('Data\/hora ISO do último lembrete enviado pela equipe via WhatsApp à paciente que ainda não abriu o link. Presente apenas na listagem; null quando nenhum lembrete foi registrado.'),
-  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.')
+  "lembradoPor": zod.string().nullish().describe('Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações na página pública (\"Li e estou ciente\"). null quando ainda não confirmou.'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.')
 }),
   "saidas": zod.object({
   "link": zod.string(),
@@ -3014,7 +3032,9 @@ export const ObterPaginaPacienteResponse = zod.object({
   "tema": zod.union([zod.literal('light'),zod.literal('dark'),zod.literal(null)]).nullable().describe('Preferência de tema escolhida pela paciente (null quando nunca escolheu → cai no temaPadrao).'),
   "temaPadrao": zod.enum(['light', 'dark']).describe('Registro padrão da clínica, usado no primeiro acesso enquanto a paciente ainda não escolheu (tema null).'),
   "equipeAnestesia": zod.string().nullable().describe('Nome da equipe de anestesia vinculada à cirurgia (null quando não configurado).'),
-  "equipeAnestesiaTelefone": zod.string().nullable().describe('Telefone da equipe de anestesia exibido na página da paciente (null quando não informado).')
+  "equipeAnestesiaTelefone": zod.string().nullable().describe('Telefone da equipe de anestesia exibido na página da paciente (null quando não informado).'),
+  "preparoConcluido": zod.record(zod.string(), zod.boolean()).describe('Itens do checklist de preparo já marcados pela paciente (mapa chave→true), persistidos no servidor. Objeto vazio quando nada foi marcado.'),
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO em que a paciente confirmou ter lido todas as informações (\"Li e estou ciente\"). null quando ainda não confirmou.')
 }).describe('Dados da página pública da paciente (território Dra. Karla).')
 
 
@@ -3033,6 +3053,40 @@ export const DefinirTemaPacienteBody = zod.object({
 export const DefinirTemaPacienteResponse = zod.object({
   "tema": zod.enum(['light', 'dark'])
 }).describe('Preferência claro\/escuro da paciente, persistida por token.')
+
+
+/**
+ * Persiste, vinculado ao token, o mapa de itens de preparo que a paciente marcou como feitos na página pública — para que a done-list sobreviva à troca de aparelho e a aberturas semanas depois.
+ * @summary Salvar o checklist de preparo marcado pela paciente
+ */
+export const SalvarPreparoPacienteParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const SalvarPreparoPacienteBody = zod.object({
+  "preparo": zod.record(zod.string(), zod.boolean())
+}).describe('Checklist de preparo marcado pela paciente (mapa chave→true), persistido por token para sobreviver à troca de aparelho.')
+
+export const SalvarPreparoPacienteResponse = zod.object({
+  "preparo": zod.record(zod.string(), zod.boolean())
+}).describe('Checklist de preparo marcado pela paciente (mapa chave→true), persistido por token para sobreviver à troca de aparelho.')
+
+
+/**
+ * Grava/zera o carimbo de que a paciente confirmou ter lido todas as informações da página pública. Exibido no dashboard da equipe.
+ * @summary Confirmar (ou desmarcar) que a paciente leu as informações
+ */
+export const ConfirmarLeituraPacienteParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const ConfirmarLeituraPacienteBody = zod.object({
+  "confirmado": zod.boolean()
+}).describe('Intenção da paciente de confirmar (ou desmarcar) que leu todas as informações da página.')
+
+export const ConfirmarLeituraPacienteResponse = zod.object({
+  "leituraConfirmadaEm": zod.string().nullable().describe('Data\/hora ISO da confirmação; null quando a paciente não está com a leitura confirmada.')
+}).describe('Estado atual da confirmação de leitura da paciente.')
 
 
 /**

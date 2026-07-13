@@ -63,6 +63,17 @@ function PaginaPacienteScreen({
   receituarioPosop?: ReceituarioPosopResumo | null;
 }) {
   const resolvidas = useMemo(() => resolverSecoesPreview(secoes, dados), [secoes, dados]);
+  // Mesmo split da página pública real (public-patient.tsx): contatos e política
+  // vão para o fim, depois das seções de preparo/documentos — assim a ordem da
+  // prévia bate exatamente com a que a paciente vê.
+  const secoesSecundarias = useMemo(
+    () => resolvidas.filter((s) => s.tipo === "contatos" || s.tipo === "politica"),
+    [resolvidas],
+  );
+  const secoesPrincipais = useMemo(
+    () => resolvidas.filter((s) => s.tipo !== "contatos" && s.tipo !== "politica"),
+    [resolvidas],
+  );
 
   const dias = useMemo(() => {
     try {
@@ -162,7 +173,7 @@ function PaginaPacienteScreen({
           </section>
         )}
 
-        {/* ============ PREPARO ============ */}
+        {/* ============ PREPARO (seções principais) ============ */}
         <div className="py-10 space-y-16">
           {resolvidas.length === 0 ? (
             <div className="py-6 text-center">
@@ -170,9 +181,9 @@ function PaginaPacienteScreen({
                 Nenhuma seção para pré-visualizar ainda. Adicione seções no conteúdo para vê-las aqui.
               </p>
             </div>
-          ) : (
+          ) : secoesPrincipais.length > 0 ? (
             <SecoesPublicas
-              secoes={resolvidas}
+              secoes={secoesPrincipais}
               passoAtual={passoAtual}
               feito={{}}
               toggle={() => {}}
@@ -184,7 +195,7 @@ function PaginaPacienteScreen({
               receitaPreparoPele={receitaPreparoPele}
               receituarioPosop={receituarioPosop}
             />
-          )}
+          ) : null}
         </div>
 
         {/* ============ DOCUMENTOS ============ */}
@@ -240,6 +251,22 @@ function PaginaPacienteScreen({
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* ============ SECUNDÁRIO (contatos + política, no fim) ============ */}
+        {secoesSecundarias.length > 0 && (
+          <section className="py-10 space-y-16 border-t border-[var(--pp-accent)]/20">
+            <SecoesPublicas
+              secoes={secoesSecundarias}
+              passoAtual={passoAtual}
+              feito={{}}
+              toggle={() => {}}
+              primeiroNome={primeiroNome}
+              dataFmt={dataFmt}
+              horario={dados.horario}
+              animar={false}
+            />
           </section>
         )}
       </main>

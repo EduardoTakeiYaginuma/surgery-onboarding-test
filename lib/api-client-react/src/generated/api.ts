@@ -31,6 +31,8 @@ import type {
   ConfigOperacional,
   ConfigPrompts,
   ConfigPromptsInput,
+  ConfirmacaoLeitura,
+  ConfirmacaoLeituraInput,
   ConflitoCpf,
   ConteudoPaciente,
   ConteudoPagina,
@@ -71,6 +73,7 @@ import type {
   PacienteUpdate,
   PaginaPaciente,
   PedidoExamesResposta,
+  PreparoPaciente,
   PreviaContrato,
   PreviaContratoInput,
   ProcessarAlertasPrazo200,
@@ -4866,6 +4869,150 @@ export const useDefinirTemaPaciente = <TError = ErrorType<Erro>,
         TContext
       > => {
       return useMutation(getDefinirTemaPacienteMutationOptions(options));
+    }
+
+export const getSalvarPreparoPacienteUrl = (token: string,) => {
+
+
+
+
+  return `/api/publico/${token}/preparo`
+}
+
+/**
+ * Persiste, vinculado ao token, o mapa de itens de preparo que a paciente marcou como feitos na página pública — para que a done-list sobreviva à troca de aparelho e a aberturas semanas depois.
+ * @summary Salvar o checklist de preparo marcado pela paciente
+ */
+export const salvarPreparoPaciente = async (token: string,
+    preparoPaciente: PreparoPaciente, options?: RequestInit): Promise<PreparoPaciente> => {
+
+  return customFetch<PreparoPaciente>(getSalvarPreparoPacienteUrl(token),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(preparoPaciente)
+  }
+);}
+
+
+
+
+export const getSalvarPreparoPacienteMutationOptions = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof salvarPreparoPaciente>>, TError,{token: string;data: BodyType<PreparoPaciente>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof salvarPreparoPaciente>>, TError,{token: string;data: BodyType<PreparoPaciente>}, TContext> => {
+
+const mutationKey = ['salvarPreparoPaciente'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof salvarPreparoPaciente>>, {token: string;data: BodyType<PreparoPaciente>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  salvarPreparoPaciente(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SalvarPreparoPacienteMutationResult = NonNullable<Awaited<ReturnType<typeof salvarPreparoPaciente>>>
+    export type SalvarPreparoPacienteMutationBody = BodyType<PreparoPaciente>
+    export type SalvarPreparoPacienteMutationError = ErrorType<Erro>
+
+    /**
+ * @summary Salvar o checklist de preparo marcado pela paciente
+ */
+export const useSalvarPreparoPaciente = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof salvarPreparoPaciente>>, TError,{token: string;data: BodyType<PreparoPaciente>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof salvarPreparoPaciente>>,
+        TError,
+        {token: string;data: BodyType<PreparoPaciente>},
+        TContext
+      > => {
+      return useMutation(getSalvarPreparoPacienteMutationOptions(options));
+    }
+
+export const getConfirmarLeituraPacienteUrl = (token: string,) => {
+
+
+
+
+  return `/api/publico/${token}/leitura`
+}
+
+/**
+ * Grava/zera o carimbo de que a paciente confirmou ter lido todas as informações da página pública. Exibido no dashboard da equipe.
+ * @summary Confirmar (ou desmarcar) que a paciente leu as informações
+ */
+export const confirmarLeituraPaciente = async (token: string,
+    confirmacaoLeituraInput: ConfirmacaoLeituraInput, options?: RequestInit): Promise<ConfirmacaoLeitura> => {
+
+  return customFetch<ConfirmacaoLeitura>(getConfirmarLeituraPacienteUrl(token),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(confirmacaoLeituraInput)
+  }
+);}
+
+
+
+
+export const getConfirmarLeituraPacienteMutationOptions = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmarLeituraPaciente>>, TError,{token: string;data: BodyType<ConfirmacaoLeituraInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmarLeituraPaciente>>, TError,{token: string;data: BodyType<ConfirmacaoLeituraInput>}, TContext> => {
+
+const mutationKey = ['confirmarLeituraPaciente'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmarLeituraPaciente>>, {token: string;data: BodyType<ConfirmacaoLeituraInput>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  confirmarLeituraPaciente(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmarLeituraPacienteMutationResult = NonNullable<Awaited<ReturnType<typeof confirmarLeituraPaciente>>>
+    export type ConfirmarLeituraPacienteMutationBody = BodyType<ConfirmacaoLeituraInput>
+    export type ConfirmarLeituraPacienteMutationError = ErrorType<Erro>
+
+    /**
+ * @summary Confirmar (ou desmarcar) que a paciente leu as informações
+ */
+export const useConfirmarLeituraPaciente = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmarLeituraPaciente>>, TError,{token: string;data: BodyType<ConfirmacaoLeituraInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmarLeituraPaciente>>,
+        TError,
+        {token: string;data: BodyType<ConfirmacaoLeituraInput>},
+        TContext
+      > => {
+      return useMutation(getConfirmarLeituraPacienteMutationOptions(options));
     }
 
 export const getObterConteudoPadraoUrl = () => {

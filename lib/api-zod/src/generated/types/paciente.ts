@@ -9,6 +9,7 @@ import type { Estagio } from './estagio';
 import type { MarcoJornadaEquipe } from './marcoJornadaEquipe';
 import type { PacienteContratoStatus } from './pacienteContratoStatus';
 import type { PacienteMarcoAtual } from './pacienteMarcoAtual';
+import type { PacientePreparoConcluido } from './pacientePreparoConcluido';
 import type { PacienteTema } from './pacienteTema';
 import type { PacienteTermoStatus } from './pacienteTermoStatus';
 
@@ -158,4 +159,11 @@ export interface Paciente {
      * @nullable
      */
   lembradoPor?: string | null;
+  /**
+     * Data/hora ISO em que a paciente confirmou ter lido todas as informações na página pública ("Li e estou ciente"). null quando ainda não confirmou.
+     * @nullable
+     */
+  leituraConfirmadaEm: string | null;
+  /** Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo. */
+  preparoConcluido: PacientePreparoConcluido;
 }

@@ -287,6 +287,11 @@ export const PacienteMarcoAtual = {
 } as const;
 
 /**
+ * Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.
+ */
+export type PacientePreparoConcluido = {[key: string]: boolean};
+
+/**
  * Marco da jornada interna da equipe (funil de 9 marcos, de Contrato & Pagamento ao 3º retorno). Não tem relação com a jornada pública da paciente.
  */
 export type MarcoJornadaEquipe = typeof MarcoJornadaEquipe[keyof typeof MarcoJornadaEquipe];
@@ -450,6 +455,13 @@ export interface Paciente {
      * @nullable
      */
   lembradoPor?: string | null;
+  /**
+     * Data/hora ISO em que a paciente confirmou ter lido todas as informações na página pública ("Li e estou ciente"). null quando ainda não confirmou.
+     * @nullable
+     */
+  leituraConfirmadaEm: string | null;
+  /** Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo. */
+  preparoConcluido: PacientePreparoConcluido;
 }
 
 export interface PacienteCreate {
@@ -1137,6 +1149,11 @@ export const PaginaPacienteTemaPadrao = {
 } as const;
 
 /**
+ * Itens do checklist de preparo já marcados pela paciente (mapa chave→true), persistidos no servidor. Objeto vazio quando nada foi marcado.
+ */
+export type PaginaPacientePreparoConcluido = {[key: string]: boolean};
+
+/**
  * Dados da página pública da paciente (território Dra. Karla).
  */
 export interface PaginaPaciente {
@@ -1232,6 +1249,13 @@ export interface PaginaPaciente {
      * @nullable
      */
   equipeAnestesiaTelefone: string | null;
+  /** Itens do checklist de preparo já marcados pela paciente (mapa chave→true), persistidos no servidor. Objeto vazio quando nada foi marcado. */
+  preparoConcluido: PaginaPacientePreparoConcluido;
+  /**
+     * Data/hora ISO em que a paciente confirmou ter lido todas as informações ("Li e estou ciente"). null quando ainda não confirmou.
+     * @nullable
+     */
+  leituraConfirmadaEm: string | null;
 }
 
 export type TemaPacienteTema = typeof TemaPacienteTema[keyof typeof TemaPacienteTema];
@@ -1262,6 +1286,33 @@ export const TemaPadraoTema = {
  */
 export interface TemaPadrao {
   tema: TemaPadraoTema;
+}
+
+export type PreparoPacientePreparo = {[key: string]: boolean};
+
+/**
+ * Checklist de preparo marcado pela paciente (mapa chave→true), persistido por token para sobreviver à troca de aparelho.
+ */
+export interface PreparoPaciente {
+  preparo: PreparoPacientePreparo;
+}
+
+/**
+ * Intenção da paciente de confirmar (ou desmarcar) que leu todas as informações da página.
+ */
+export interface ConfirmacaoLeituraInput {
+  confirmado: boolean;
+}
+
+/**
+ * Estado atual da confirmação de leitura da paciente.
+ */
+export interface ConfirmacaoLeitura {
+  /**
+     * Data/hora ISO da confirmação; null quando a paciente não está com a leitura confirmada.
+     * @nullable
+     */
+  leituraConfirmadaEm: string | null;
 }
 
 export interface Vendedora {

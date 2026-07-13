@@ -2429,6 +2429,50 @@ export default function ConsolePatient({ params }: { params: { id: string } }) {
                   )}
                 </div>
               )}
+              {/* Sinais da própria página: confirmação de leitura + progresso do
+                  checklist de preparo marcado pela paciente. */}
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={`inline-flex items-center gap-2 border px-4 py-2 ${
+                    data.paciente.leituraConfirmadaEm
+                      ? "border-accent/50 bg-accent/10"
+                      : "border-border bg-card/40"
+                  }`}
+                >
+                  {data.paciente.leituraConfirmadaEm ? (
+                    <Check className="w-3.5 h-3.5 text-accent shrink-0" strokeWidth={2.5} />
+                  ) : (
+                    <span className="w-1.5 h-1.5 rotate-45 bg-muted-foreground shrink-0" />
+                  )}
+                  {data.paciente.leituraConfirmadaEm ? (
+                    <span className="text-sm font-light text-foreground">
+                      Confirmou a leitura
+                      <span className="text-muted-foreground">
+                        {" "}· {format(parseISO(data.paciente.leituraConfirmadaEm), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-sm font-light text-muted-foreground">
+                      Ainda não confirmou a leitura
+                    </span>
+                  )}
+                </span>
+                {(() => {
+                  const marcados = Object.values(data.paciente.preparoConcluido ?? {}).filter(Boolean).length;
+                  if (marcados === 0) return null;
+                  return (
+                    <span className="inline-flex items-center gap-2 border border-border bg-card/40 px-4 py-2">
+                      <span className="w-1.5 h-1.5 rotate-45 bg-accent shrink-0" />
+                      <span className="text-sm font-light text-foreground">
+                        Preparo
+                        <span className="text-muted-foreground">
+                          {" "}· {marcados} {marcados === 1 ? "item marcado" : "itens marcados"}
+                        </span>
+                      </span>
+                    </span>
+                  );
+                })()}
+              </div>
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
                 <div className="space-y-6">
                   <h1 className="font-serif text-5xl md:text-6xl font-light tracking-tight text-foreground leading-none">{data.paciente.nome}</h1>

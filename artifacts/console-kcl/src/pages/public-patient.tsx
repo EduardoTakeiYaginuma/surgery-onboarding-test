@@ -3,6 +3,8 @@ import {
   useObterPaginaPaciente,
   getObterPaginaPacienteQueryKey,
   isConnectivityError,
+  useSalvarPreparoPaciente,
+  useConfirmarLeituraPaciente,
 } from "@workspace/api-client-react";
 import coverPhoto from "@assets/image_1782503830851.webp";
 import { ConnectionErrorPublic } from "@/components/connection-error";
@@ -17,6 +19,7 @@ import {
   FileSignature,
   Sun,
   Moon,
+  Check,
 } from "lucide-react";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { motion } from "framer-motion";
@@ -167,6 +170,14 @@ export default function PublicPatient({ params }: { params: { token: string } })
 
   const storageKey = `kcl-preparo-${token}`;
   const [feito, setFeito] = useState<Record<string, boolean>>({});
+  const { mutate: salvarPreparo } = useSalvarPreparoPaciente();
+  const { mutate: confirmarLeituraServidor } = useConfirmarLeituraPaciente();
+  // O servidor é a fonte da verdade do checklist/confirmação; hidratamos uma vez
+  // quando o payload chega (sobrevive à troca de aparelho). O localStorage segue
+  // como caminho rápido/offline.
+  const preparoHidratado = useRef(false);
+  const leituraHidratada = useRef(false);
+  const [leituraConfirmada, setLeituraConfirmada] = useState(false);
   const [contratoBaixando, setContratoBaixando] = useState<null | "abrir" | "baixar">(null);
   const [contratoErro, setContratoErro] = useState(false);
   const [termoBaixando, setTermoBaixando] = useState<null | "abrir" | "baixar">(null);
@@ -419,7 +430,11 @@ export default function PublicPatient({ params }: { params: { token: string } })
     }
   }
 
+  // Caminho rápido/offline: aplica o valor local enquanto o payload não chega.
+  // Reinicia os flags de hidratação a cada troca de token.
   useEffect(() => {
+    preparoHidratado.current = false;
+    leituraHidratada.current = false;
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) setFeito(JSON.parse(raw));
@@ -428,6 +443,31 @@ export default function PublicPatient({ params }: { params: { token: string } })
       setFeito({});
     }
   }, [storageKey]);
+
+  // Fonte da verdade: quando o payload chega, mescla o que o servidor tem com o
+  // que estava marcado localmente (nada se perde na primeira migração) e espelha
+  // no localStorage. Roda uma única vez por token.
+  useEffect(() => {
+    if (preparoHidratado.current || !data) return;
+    preparoHidratado.current = true;
+    setFeito((local) => {
+      const servidor = data.preparoConcluido ?? {};
+      const merged = { ...local, ...servidor };
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+      } catch {
+        /* ignore quota/availability errors */
+      }
+      return merged;
+    });
+  }, [data, storageKey]);
+
+  // Confirmação de leitura: reflete o que o servidor devolveu, uma vez.
+  useEffect(() => {
+    if (leituraHidratada.current || !data) return;
+    leituraHidratada.current = true;
+    setLeituraConfirmada(!!data.leituraConfirmadaEm);
+  }, [data]);
 
   const toggle = useCallback(
     (key: string) => {
@@ -439,6 +479,9 @@ export default function PublicPatient({ params }: { params: { token: string } })
         } catch {
           /* ignore quota/availability errors */
         }
+        // Persiste o mapa inteiro no servidor (best-effort). Assim a done-list
+        // sobrevive à troca de aparelho e a aberturas semanas depois.
+        if (token) salvarPreparo({ token, data: { preparo: next } });
         return next;
       });
       // Registra apenas quando a paciente MARCA um item (não ao desmarcar).
@@ -450,8 +493,16 @@ export default function PublicPatient({ params }: { params: { token: string } })
         }
       }
     },
-    [feito, storageKey, token],
+    [feito, storageKey, token, salvarPreparo],
   );
+
+  const alternarLeitura = useCallback(() => {
+    setLeituraConfirmada((prev) => {
+      const next = !prev;
+      if (token) confirmarLeituraServidor({ token, data: { confirmado: next } });
+      return next;
+    });
+  }, [token, confirmarLeituraServidor]);
 
   if (isError) {
     if (isConnectivityError(error)) {
@@ -1015,6 +1066,38 @@ export default function PublicPatient({ params }: { params: { token: string } })
             />
           </section>
         )}
+
+        {/* ============ CONFIRMAÇÃO DE LEITURA ============ */}
+        <section className="relative py-12 border-t border-[var(--pp-accent)]/20">
+          <button
+            type="button"
+            onClick={alternarLeitura}
+            aria-pressed={leituraConfirmada}
+            className="group flex items-start gap-4 w-full text-left"
+          >
+            <span
+              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border transition-colors ${
+                leituraConfirmada
+                  ? "bg-[var(--pp-strong)] border-[var(--pp-strong)]"
+                  : "border-[var(--pp-accent)]/50 group-hover:border-[var(--pp-accent)]"
+              }`}
+            >
+              {leituraConfirmada && (
+                <Check className="h-4 w-4 text-[var(--pp-on-strong)]" strokeWidth={2.5} />
+              )}
+            </span>
+            <span>
+              <span className="block font-light leading-relaxed text-[var(--pp-text)]">
+                Li e estou ciente de todas as informações desta página.
+              </span>
+              <span className="mt-1 block font-mono text-[11px] opacity-60">
+                {leituraConfirmada
+                  ? "Confirmado — obrigada! A equipe já consegue ver."
+                  : "Toque para confirmar quando terminar de ler."}
+              </span>
+            </span>
+          </button>
+        </section>
       </main>
 
       {/* ============ RODAPÉ ============ */}

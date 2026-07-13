@@ -166,6 +166,17 @@ export const pacientesTable = pgTable("pacientes", {
   // null = nunca escolheu → padrão claro. Persistida por token para acompanhar a
   // paciente entre dispositivos.
   tema: text("tema").$type<"light" | "dark">(),
+  // Checklist de preparo marcado pela paciente na página pública, como um mapa
+  // { chaveDoItem: true }. Persistido no servidor (não só no localStorage) para
+  // sobreviver à troca de aparelho e a aberturas semanas depois. null/{} = nada
+  // marcado. As chaves seguem os prefixos usados na página (prep:/doc:/exame:).
+  preparoConcluido: jsonb("preparo_concluido").$type<Record<string, boolean>>(),
+  // Carimbo de quando a paciente confirmou, na página pública, que leu todas as
+  // informações ("Li e estou ciente"). null = ainda não confirmou. Exibido no
+  // dashboard da equipe.
+  leituraConfirmadaEm: timestamp("leitura_confirmada_em", {
+    withTimezone: true,
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

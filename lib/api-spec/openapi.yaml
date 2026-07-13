@@ -1732,6 +1732,68 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Erro"
+  /publico/{token}/preparo:
+    put:
+      operationId: salvarPreparoPaciente
+      tags: [publico]
+      summary: Salvar o checklist de preparo marcado pela paciente
+      description: Persiste, vinculado ao token, o mapa de itens de preparo que a paciente marcou como feitos na página pública — para que a done-list sobreviva à troca de aparelho e a aberturas semanas depois.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreparoPaciente"
+      responses:
+        "200":
+          description: Preparo salvo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreparoPaciente"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /publico/{token}/leitura:
+    put:
+      operationId: confirmarLeituraPaciente
+      tags: [publico]
+      summary: Confirmar (ou desmarcar) que a paciente leu as informações
+      description: Grava/zera o carimbo de que a paciente confirmou ter lido todas as informações da página pública. Exibido no dashboard da equipe.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmacaoLeituraInput"
+      responses:
+        "200":
+          description: Confirmação atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmacaoLeitura"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
   /conteudo-padrao:
     get:
       operationId: obterConteudoPadrao
@@ -2617,6 +2679,14 @@ components:
         lembradoPor:
           type: ["string", "null"]
           description: Nome do membro da equipe que enviou o último lembrete por WhatsApp. Presente apenas na listagem; null quando nenhum lembrete foi registrado ou o autor não foi capturado.
+        leituraConfirmadaEm:
+          type: ["string", "null"]
+          description: Data/hora ISO em que a paciente confirmou ter lido todas as informações na página pública ("Li e estou ciente"). null quando ainda não confirmou.
+        preparoConcluido:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Itens do checklist de preparo marcados pela paciente (mapa chave→true). Objeto vazio quando nada foi marcado. Permite ao dashboard mostrar o progresso do preparo.
       required:
         - id
         - nome
@@ -2670,6 +2740,8 @@ components:
         - retorno1Em
         - retorno2Em
         - retorno3Em
+        - leituraConfirmadaEm
+        - preparoConcluido
     PacienteCreate:
       type: object
       properties:
@@ -3790,6 +3862,14 @@ components:
         equipeAnestesiaTelefone:
           type: ["string", "null"]
           description: Telefone da equipe de anestesia exibido na página da paciente (null quando não informado).
+        preparoConcluido:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Itens do checklist de preparo já marcados pela paciente (mapa chave→true), persistidos no servidor. Objeto vazio quando nada foi marcado.
+        leituraConfirmadaEm:
+          type: ["string", "null"]
+          description: Data/hora ISO em que a paciente confirmou ter lido todas as informações ("Li e estou ciente"). null quando ainda não confirmou.
       required:
         - primeiroNome
         - nome
@@ -3825,6 +3905,8 @@ components:
         - temaPadrao
         - equipeAnestesia
         - equipeAnestesiaTelefone
+        - preparoConcluido
+        - leituraConfirmadaEm
     TemaPaciente:
       type: object
       description: Preferência claro/escuro da paciente, persistida por token.
@@ -3843,6 +3925,33 @@ components:
           enum: [light, dark]
       required:
         - tema
+    PreparoPaciente:
+      type: object
+      description: Checklist de preparo marcado pela paciente (mapa chave→true), persistido por token para sobreviver à troca de aparelho.
+      properties:
+        preparo:
+          type: object
+          additionalProperties:
+            type: boolean
+      required:
+        - preparo
+    ConfirmacaoLeituraInput:
+      type: object
+      description: Intenção da paciente de confirmar (ou desmarcar) que leu todas as informações da página.
+      properties:
+        confirmado:
+          type: boolean
+      required:
+        - confirmado
+    ConfirmacaoLeitura:
+      type: object
+      description: Estado atual da confirmação de leitura da paciente.
+      properties:
+        leituraConfirmadaEm:
+          type: ["string", "null"]
+          description: Data/hora ISO da confirmação; null quando a paciente não está com a leitura confirmada.
+      required:
+        - leituraConfirmadaEm
     Vendedora:
       type: object
       properties:

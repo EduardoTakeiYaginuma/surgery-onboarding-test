@@ -135,6 +135,23 @@ export interface PacientesRepository {
     id: number,
     tema: "light" | "dark",
   ): Promise<Paciente | undefined>;
+  /**
+   * Salva o checklist de preparo marcado pela paciente (mapa chave→true),
+   * substituindo o valor anterior. Persistido para sobreviver à troca de
+   * aparelho.
+   */
+  salvarPreparo(
+    id: number,
+    preparo: Record<string, boolean>,
+  ): Promise<Paciente | undefined>;
+  /**
+   * Grava (ou zera) o carimbo de confirmação de leitura da página pública.
+   * `confirmado=true` marca o instante atual; `false` volta a null.
+   */
+  salvarLeitura(
+    id: number,
+    confirmado: boolean,
+  ): Promise<Paciente | undefined>;
   /** Cria o registro de um PDF já enviado ao armazenamento. */
   criarDocumento(dados: InsertDocumento): Promise<DocumentoPaciente>;
   /** Lista os documentos da paciente (mais recentes primeiro). */
@@ -500,6 +517,30 @@ class DrizzlePacientesRepository implements PacientesRepository {
     const [row] = await db
       .update(pacientesTable)
       .set({ tema })
+      .where(eq(pacientesTable.id, id))
+      .returning();
+    return row;
+  }
+
+  async salvarPreparo(
+    id: number,
+    preparo: Record<string, boolean>,
+  ): Promise<Paciente | undefined> {
+    const [row] = await db
+      .update(pacientesTable)
+      .set({ preparoConcluido: preparo })
+      .where(eq(pacientesTable.id, id))
+      .returning();
+    return row;
+  }
+
+  async salvarLeitura(
+    id: number,
+    confirmado: boolean,
+  ): Promise<Paciente | undefined> {
+    const [row] = await db
+      .update(pacientesTable)
+      .set({ leituraConfirmadaEm: confirmado ? new Date() : null })
       .where(eq(pacientesTable.id, id))
       .returning();
     return row;

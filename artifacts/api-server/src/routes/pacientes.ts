@@ -42,6 +42,12 @@ import {
   DefinirTemaPacienteParams,
   DefinirTemaPacienteBody,
   DefinirTemaPacienteResponse,
+  SalvarPreparoPacienteParams,
+  SalvarPreparoPacienteBody,
+  SalvarPreparoPacienteResponse,
+  ConfirmarLeituraPacienteParams,
+  ConfirmarLeituraPacienteBody,
+  ConfirmarLeituraPacienteResponse,
   DefinirTemaPadraoBody,
   DefinirTemaPadraoResponse,
   ObterConfigResponse,
@@ -2511,6 +2517,62 @@ router.put("/publico/:token/tema", async (req, res): Promise<void> => {
 
   await pacientesRepo.salvarTema(paciente.id, body.data.tema);
   res.json(DefinirTemaPacienteResponse.parse({ tema: body.data.tema }));
+});
+
+// Persiste o checklist de preparo marcado pela paciente (done-list) por token.
+// Mesmo esquema aberto do /tema: a página pública é acessada só pelo token.
+router.put("/publico/:token/preparo", async (req, res): Promise<void> => {
+  const params = SalvarPreparoPacienteParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: params.error.message });
+    return;
+  }
+  const body = SalvarPreparoPacienteBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ message: body.error.message });
+    return;
+  }
+
+  const paciente = await pacientesRepo.obterPorToken(params.data.token);
+  if (!paciente) {
+    res.status(404).json({ message: "Página não encontrada" });
+    return;
+  }
+
+  await pacientesRepo.salvarPreparo(paciente.id, body.data.preparo);
+  res.json(SalvarPreparoPacienteResponse.parse({ preparo: body.data.preparo }));
+});
+
+// Grava/zera a confirmação de leitura ("Li e estou ciente") da página pública.
+router.put("/publico/:token/leitura", async (req, res): Promise<void> => {
+  const params = ConfirmarLeituraPacienteParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ message: params.error.message });
+    return;
+  }
+  const body = ConfirmarLeituraPacienteBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ message: body.error.message });
+    return;
+  }
+
+  const paciente = await pacientesRepo.obterPorToken(params.data.token);
+  if (!paciente) {
+    res.status(404).json({ message: "Página não encontrada" });
+    return;
+  }
+
+  const atualizado = await pacientesRepo.salvarLeitura(
+    paciente.id,
+    body.data.confirmado,
+  );
+  res.json(
+    ConfirmarLeituraPacienteResponse.parse({
+      leituraConfirmadaEm: atualizado?.leituraConfirmadaEm
+        ? atualizado.leituraConfirmadaEm.toISOString()
+        : null,
+    }),
+  );
 });
 
 // Download/visualização do PDF assinado — link público (por token).
