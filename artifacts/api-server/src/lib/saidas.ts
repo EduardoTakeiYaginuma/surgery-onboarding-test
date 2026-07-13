@@ -124,6 +124,7 @@ export function pacienteParaDTO(
     clinica: p.clinica,
     local: p.local,
     localEndereco: p.localEndereco ?? null,
+    localId: p.localId ?? null,
     equipeAnestesia: p.equipeAnestesia,
     equipeAnestesiaTelefone: p.equipeAnestesiaTelefone ?? null,
     estagio: p.estagio as "Fechamento" | "Enviado" | "Véspera" | "Cirurgia",
@@ -317,7 +318,7 @@ export function montarSaidas(p: Paciente) {
   const prazoDocumentos = `Lembrando: todos os documentos precisam estar assinados${
     temPendente ? " e os valores quitados" : ""
   } até 48h antes da cirurgia.`;
-  const hospital = perfilLocalDoPaciente(p.local, p.localEndereco);
+  const hospital = perfilLocalDoPaciente(p.local, p.localEndereco, p.localSnapshot);
   const equipeNome = p.equipeAnestesia;
   const equipeTelefone = p.equipeAnestesiaTelefone ?? "";
   // "Nome (telefone)" quando há telefone; só o nome caso contrário.
@@ -453,7 +454,7 @@ export function montarPaginaPaciente(
     receituarioPosop: null,
   },
 ) {
-  const hospital = perfilLocalDoPaciente(p.local, p.localEndereco);
+  const hospital = perfilLocalDoPaciente(p.local, p.localEndereco, p.localSnapshot);
   const pendenteNum = Number(p.valorPendente);
     const pagamento = {
       valorPago: Number(p.valorSinal),

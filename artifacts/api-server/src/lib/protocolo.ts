@@ -7,6 +7,8 @@
  * reflete o protocolo conhecido (Avant Moema / Zenicare).
  */
 
+import type { Local, LocalSnapshot } from "@workspace/db";
+
 export const A_PREENCHER = "{a preencher}";
 
 /**
@@ -138,7 +140,14 @@ export function obterHospitalExato(
 export function perfilLocalDoPaciente(
   local: string | null | undefined,
   endereco: string | null | undefined,
+  snapshot?: LocalSnapshot | null,
 ): HospitalProfile {
+  // Fonte primária: o SNAPSHOT gravado no cadastro (perfil do local escolhido no
+  // momento em que a ficha foi salva). Preserva as mensagens mesmo que o local
+  // seja editado/desativado depois — mesma filosofia dos snapshots de médico.
+  if (snapshot) return snapshot;
+  // Fallback (cadastros antigos sem snapshot / testes): resolve os campos ricos
+  // casando o nome livre com o catálogo padrão em memória.
   const nome = (local ?? "").trim();
   const end = (endereco ?? "").trim();
   const conhecido = obterHospitalExato(nome);
@@ -151,5 +160,23 @@ export function perfilLocalDoPaciente(
     contatoCCTelefone: conhecido?.contatoCCTelefone ?? "",
     sinalSugerido: conhecido?.sinalSugerido ?? null,
     instrucoesChegada: conhecido?.instrucoesChegada ?? A_PREENCHER,
+  };
+}
+
+/**
+ * Perfil (para mensagens/página e para gravar como snapshot no paciente) a
+ * partir de uma linha da tabela configurável `locais`. Converte o casing das
+ * colunas (contatoCc*) para o do perfil (contatoCC*) e o numeric do sinal.
+ */
+export function perfilDeLocal(row: Local): HospitalProfile {
+  return {
+    chave: row.nome,
+    nome: row.nome,
+    nomeCompleto: row.nomeCompleto || row.nome,
+    endereco: row.endereco || "",
+    contatoCCNome: row.contatoCcNome || "",
+    contatoCCTelefone: row.contatoCcTelefone || "",
+    sinalSugerido: row.sinalSugerido != null ? Number(row.sinalSugerido) : null,
+    instrucoesChegada: row.instrucoesChegada || "",
   };
 }

@@ -273,7 +273,7 @@ export function instrucoesChegadaTexto(h: HospitalProfile): string {
 
 /** Monta o dicionário de variáveis a partir do paciente e do protocolo. */
 export function montarContexto(p: Paciente): ContextoCompleto {
-  const hospital = perfilLocalDoPaciente(p.local, p.localEndereco);
+  const hospital = perfilLocalDoPaciente(p.local, p.localEndereco, p.localSnapshot);
   return montarContextoCompleto({
     nome: p.nome,
     dataCirurgia: p.dataCirurgia,

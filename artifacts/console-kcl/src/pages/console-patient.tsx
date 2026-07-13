@@ -65,7 +65,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { apenasDigitos, validarCpf, validarTelefone, formatarCpf, formatarTelefone } from "@/lib/br-validacao";
+import { apenasDigitos, validarCpf, validarTelefone, formatarCpf, formatarTelefone, formatarData } from "@/lib/br-validacao";
 import {
   Select,
   SelectContent,
@@ -109,6 +109,9 @@ import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { MEDICO_PERSONALIZADO, diasUteisAntes } from "@/lib/paciente-form-utils";
 const SEM_VENDEDORA = "__nenhuma__";
+// Opção "digitar um local novo" no seletor de hospital (texto livre → cria/reusa
+// um local no backend). Distingue-se de um id de local da lista.
+const LOCAL_LIVRE = "__local_livre__";
 
 const editSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
@@ -140,6 +143,9 @@ const editSchema = z.object({
   laser: z.boolean().default(false),
   local: z.string().min(1, "Local é obrigatório"),
   localEndereco: z.string().default(""),
+  // Id do local escolhido da lista configurável ("" = texto livre, que cria/reusa
+  // um local no backend a partir de `local`/`localEndereco`).
+  localId: z.string().default(""),
   equipeAnestesia: z.string().min(1, "Informe a equipe de anestesia."),
   equipeAnestesiaTelefone: z.string().default(""),
   medicoId: z.string().default(MEDICO_PERSONALIZADO),
@@ -172,6 +178,7 @@ function valoresDaPaciente(p: Paciente): z.infer<typeof editSchema> {
     laser: p.laser,
     local: p.local,
     localEndereco: p.localEndereco ?? "",
+    localId: p.localId != null ? String(p.localId) : "",
     equipeAnestesia: p.equipeAnestesia ?? "",
     equipeAnestesiaTelefone: p.equipeAnestesiaTelefone ?? "",
     medicoId: p.medicoId != null ? String(p.medicoId) : MEDICO_PERSONALIZADO,
@@ -350,9 +357,13 @@ function CamposEdicaoPaciente({
             <FormLabel className="text-muted-foreground font-expanded text-[10px] tracking-widest uppercase">Data de nascimento (opcional)</FormLabel>
             <FormControl>
               <Input
+                inputMode="numeric"
                 placeholder="dd/mm/aaaa"
+                maxLength={10}
                 className="bg-card border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-none h-12 text-foreground placeholder:text-muted-foreground/50"
                 {...field}
+                value={formatarData(field.value)}
+                onChange={(e) => field.onChange(formatarData(e.target.value))}
               />
             </FormControl>
             <FormMessage className="font-mono text-xs text-red-400" />
@@ -561,38 +572,86 @@ function CamposEdicaoPaciente({
 
       <FormField
         control={form.control}
-        name="local"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-muted-foreground font-expanded text-[10px] tracking-widest uppercase">Hospital / Local</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Ex: Avant Moema Day Hospital"
-                className="bg-card border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-none h-12 text-foreground"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage className="font-mono text-xs text-red-400" />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="localEndereco"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-muted-foreground font-expanded text-[10px] tracking-widest uppercase">Endereço do local</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Ex: Av. Copacabana, 112, 3º andar — Moema, São Paulo"
-                className="bg-card border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-none h-12 text-foreground"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage className="font-mono text-xs text-red-400" />
-          </FormItem>
-        )}
+        name="localId"
+        render={({ field }) => {
+          const hospitais = config?.hospitais ?? [];
+          const livre = field.value === "" || field.value === LOCAL_LIVRE;
+          return (
+            <FormItem>
+              <FormLabel className="text-muted-foreground font-expanded text-[10px] tracking-widest uppercase">Hospital / Local</FormLabel>
+              <Select
+                value={field.value === "" ? undefined : field.value}
+                onValueChange={(v) => {
+                  if (v === "") return;
+                  field.onChange(v);
+                  if (v === LOCAL_LIVRE) {
+                    form.setValue("local", "", { shouldValidate: true });
+                    form.setValue("localEndereco", "");
+                  } else {
+                    const h = hospitais.find((x) => String(x.id) === v);
+                    form.setValue("local", h?.nome ?? "", { shouldValidate: true });
+                    form.setValue("localEndereco", "");
+                  }
+                }}
+              >
+                <FormControl>
+                  <SelectTrigger className="bg-card border-transparent focus:ring-1 focus:ring-ring rounded-none h-12 text-foreground">
+                    <SelectValue placeholder="Selecione o hospital / local" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="bg-background border-border text-foreground rounded-none">
+                  {hospitais.map((h) => (
+                    <SelectItem key={h.id} value={String(h.id)} className="focus:bg-card focus:text-foreground rounded-none">
+                      {h.nome}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={LOCAL_LIVRE} className="focus:bg-card focus:text-foreground rounded-none">
+                    Outro (digitar novo local)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {livre && (
+                <div className="space-y-3 pt-2">
+                  <FormField
+                    control={form.control}
+                    name="local"
+                    render={({ field: lf }) => (
+                      <FormItem>
+                        <FormLabel className="text-muted-foreground font-expanded text-[10px] tracking-widest uppercase">Nome do local</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Avant Moema Day Hospital"
+                            className="bg-card border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-none h-12 text-foreground"
+                            {...lf}
+                          />
+                        </FormControl>
+                        <FormMessage className="font-mono text-xs text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="localEndereco"
+                    render={({ field: ef }) => (
+                      <FormItem>
+                        <FormLabel className="text-muted-foreground font-expanded text-[10px] tracking-widest uppercase">Endereço do local</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Av. Copacabana, 112, 3º andar — Moema, São Paulo"
+                            className="bg-card border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-none h-12 text-foreground"
+                            {...ef}
+                          />
+                        </FormControl>
+                        <FormMessage className="font-mono text-xs text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+              <FormMessage className="font-mono text-xs text-red-400" />
+            </FormItem>
+          );
+        }}
       />
 
       <FormField
@@ -2041,7 +2100,7 @@ export default function ConsolePatient({ params }: { params: { id: string } }) {
   }, [formPronto, valoresEdit, config, data?.paciente, medicosEdicao, medicosComFotos]);
 
   function onSaveEdit(values: z.infer<typeof editSchema>) {
-    const { medicoId, ...resto } = values;
+    const { medicoId, localId, ...resto } = values;
     const temPendente = values.valorPendente > 0;
     // Resolve o médico a gravar com segurança: "Personalizado" desvincula (null),
     // um id numérico vincula; qualquer valor inesperado (ex.: "" — vide o
@@ -2061,6 +2120,8 @@ export default function ConsolePatient({ params }: { params: { id: string } }) {
           dataPagamentoPendente:
             temPendente && values.dataPagamentoPendente ? values.dataPagamentoPendente : null,
           medicoId: medicoIdResolvido,
+          // Local: id da lista OU null (texto livre → backend cria/reusa o local).
+          localId: localId && localId !== LOCAL_LIVRE ? Number(localId) : null,
         },
       },
       {

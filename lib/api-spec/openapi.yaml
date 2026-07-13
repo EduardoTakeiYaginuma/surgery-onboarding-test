@@ -1585,6 +1585,97 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Erro"
+  /locais:
+    get:
+      operationId: listarLocais
+      tags: [locais]
+      summary: Listar locais de cirurgia
+      description: Lista os locais de cirurgia (hospitais) configuráveis. Por padrão só os ativos.
+      parameters:
+        - name: incluirInativos
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Lista de locais
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Local"
+    post:
+      operationId: criarLocal
+      tags: [locais]
+      summary: Cadastrar local de cirurgia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalCreate"
+      responses:
+        "201":
+          description: Local criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Local"
+  /locais/{id}:
+    patch:
+      operationId: atualizarLocal
+      tags: [locais]
+      summary: Editar ou desativar local de cirurgia
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalUpdate"
+      responses:
+        "200":
+          description: Local atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Local"
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+    delete:
+      operationId: removerLocal
+      tags: [locais]
+      summary: Remover local de cirurgia
+      description: >-
+        Remove o local. Os pacientes que já o usaram mantêm o texto e o snapshot
+        do local (o vínculo `localId` deles fica null). Prefira desativar (PATCH
+        ativo=false) quando quiser apenas tirá-lo dos seletores.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Local removido
+        "404":
+          description: Não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
   /publico/{token}:
     get:
       operationId: obterPaginaPaciente
@@ -2379,6 +2470,9 @@ components:
         localEndereco:
           type: string
           nullable: true
+        localId:
+          type: ["integer", "null"]
+          description: Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.
         equipeAnestesia:
           type: string
         equipeAnestesiaTelefone:
@@ -2583,8 +2677,8 @@ components:
           type: string
         cpf:
           type: string
-          pattern: '^(\d{11})?$'
-          description: CPF da paciente (apenas dígitos, 11) — OPCIONAL; vazio quando ainda não se tem o CPF.
+          pattern: '^\d{11}$'
+          description: CPF da paciente (apenas dígitos, 11) — OBRIGATÓRIO no cadastro.
         telefone:
           type: string
           pattern: '^\d{10,11}$'
@@ -2622,6 +2716,12 @@ components:
           type: string
           nullable: true
           description: Endereço do local da cirurgia (texto livre, opcional).
+        localId:
+          type: ["integer", "null"]
+          description: >-
+            Id do local de cirurgia escolhido da lista configurável (tabela
+            `locais`). Quando omitido/null e `local` vier como texto livre, o
+            backend cria um novo local com esse texto e vincula o id.
         equipeAnestesia:
           type: string
           default: Zenicare
@@ -2649,7 +2749,7 @@ components:
         nascimento:
           type: string
           nullable: true
-          description: Data de nascimento (texto livre, ex. 15/05/1981). Opcional.
+          description: Data de nascimento (texto livre, ex. 15/05/1981). Obrigatório no cadastro pelo Console; opcional na API para não quebrar outros clientes.
         endereco:
           type: string
           nullable: true
@@ -2663,6 +2763,7 @@ components:
             procedimento). Não afeta o bloqueio contra cadastros ativos.
       required:
         - nome
+        - cpf
         - telefone
         - procedimentos
         - dataCirurgia
@@ -2726,6 +2827,12 @@ components:
         localEndereco:
           type: string
           nullable: true
+        localId:
+          type: ["integer", "null"]
+          description: >-
+            Id do local de cirurgia escolhido da lista configurável. Quando vier
+            `local` como texto livre sem `localId`, o backend cria um novo local
+            e revincula. Re-snapshota os campos ricos do local no paciente.
         equipeAnestesia:
           type: string
         equipeAnestesiaTelefone:
@@ -3106,6 +3213,9 @@ components:
     HospitalOption:
       type: object
       properties:
+        id:
+          type: integer
+          description: Id do local na tabela configurável `locais` (usado para vincular o paciente por `localId`).
         chave:
           type: string
         nome:
@@ -3122,6 +3232,7 @@ components:
         sinalSugerido:
           type: number
       required:
+        - id
         - chave
         - nome
         - nomeCompleto
@@ -3763,6 +3874,87 @@ components:
       properties:
         nome:
           type: string
+        ativo:
+          type: boolean
+    Local:
+      type: object
+      description: Local de cirurgia (hospital) configurável pela equipe.
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+          description: Nome curto para exibição e seletores.
+        nomeCompleto:
+          type: string
+          description: Nome completo da instituição (mensagens e página da paciente).
+        endereco:
+          type: string
+        contatoCcNome:
+          type: string
+          description: Nome do contato do Centro Cirúrgico.
+        contatoCcTelefone:
+          type: string
+        instrucoesChegada:
+          type: string
+          description: Instruções/janela de chegada específicas do local.
+        sinalSugerido:
+          type: ["number", "null"]
+          description: Valor de sinal sugerido para pré-preencher o formulário (null = sem sugestão).
+        ativo:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - nome
+        - nomeCompleto
+        - endereco
+        - contatoCcNome
+        - contatoCcTelefone
+        - instrucoesChegada
+        - sinalSugerido
+        - ativo
+        - createdAt
+        - updatedAt
+    LocalCreate:
+      type: object
+      properties:
+        nome:
+          type: string
+        nomeCompleto:
+          type: string
+        endereco:
+          type: string
+        contatoCcNome:
+          type: string
+        contatoCcTelefone:
+          type: string
+        instrucoesChegada:
+          type: string
+        sinalSugerido:
+          type: ["number", "null"]
+      required:
+        - nome
+    LocalUpdate:
+      type: object
+      properties:
+        nome:
+          type: string
+        nomeCompleto:
+          type: string
+        endereco:
+          type: string
+        contatoCcNome:
+          type: string
+        contatoCcTelefone:
+          type: string
+        instrucoesChegada:
+          type: string
+        sinalSugerido:
+          type: ["number", "null"]
         ativo:
           type: boolean
     TimelineEvento:

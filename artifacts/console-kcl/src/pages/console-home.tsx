@@ -61,7 +61,7 @@ import {
 } from "@/components/ui/tooltip";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { motion } from "framer-motion";
-import { ChevronRight, Plus, HelpCircle, X, Check, Pencil, Users, Archive, Search, FileText, AlertTriangle, Bell, CalendarClock, MessageCircle, FilePlus, Menu, Stethoscope, Sparkles } from "lucide-react";
+import { ChevronRight, Plus, HelpCircle, X, Check, Pencil, Users, Archive, Search, FileText, AlertTriangle, Bell, CalendarClock, MessageCircle, FilePlus, Menu, Stethoscope, Sparkles, MapPin } from "lucide-react";
 import { linkLembreteWhatsApp } from "@/lib/patient-tools";
 import { useOperador } from "@/lib/operador";
 import {
@@ -671,6 +671,13 @@ export default function ConsoleHome() {
                 <Sparkles className="w-4 h-4" strokeWidth={1.5} />
                 <span>Prompts da IA</span>
               </Link>
+              <Link
+                href="/locais"
+                className="flex items-center gap-2 text-muted-foreground hover:text-accent transition-colors text-xs font-light"
+              >
+                <MapPin className="w-4 h-4" strokeWidth={1.5} />
+                <span>Locais de cirurgia</span>
+              </Link>
               <button
                 type="button"
                 onClick={() => setShowGuide(true)}
@@ -723,6 +730,11 @@ export default function ConsoleHome() {
                   <DropdownMenuItem asChild>
                     <Link href="/prompts" className="flex items-center gap-2 cursor-pointer text-muted-foreground focus:bg-card! focus:text-foreground!">
                       <Sparkles className="w-4 h-4" strokeWidth={1.5} /> Prompts da IA
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/locais" className="flex items-center gap-2 cursor-pointer text-muted-foreground focus:bg-card! focus:text-foreground!">
+                      <MapPin className="w-4 h-4" strokeWidth={1.5} /> Locais de cirurgia
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

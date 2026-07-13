@@ -16,6 +16,35 @@ import {
 
 export { apenasDigitos, formatarCpf, formatarTelefone };
 
+/**
+ * Máscara progressiva de data: mantém só dígitos (até 8) e insere as barras
+ * conforme a pessoa digita, produzindo dd/mm/aaaa. Só formata — não valida se a
+ * data existe (ver `dataBrCompleta`). Idempotente: reformatar já-formatado
+ * devolve o mesmo texto.
+ */
+export function formatarData(valor: string): string {
+  const d = apenasDigitos(valor).slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
+/** true quando o texto é uma data dd/mm/aaaa completa e existente (calendário). */
+export function dataBrCompleta(valor: string): boolean {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((valor ?? "").trim());
+  if (!m) return false;
+  const dia = Number(m[1]);
+  const mes = Number(m[2]);
+  const ano = Number(m[3]);
+  if (mes < 1 || mes > 12 || dia < 1 || ano < 1900) return false;
+  const dt = new Date(ano, mes - 1, dia);
+  return (
+    dt.getFullYear() === ano &&
+    dt.getMonth() === mes - 1 &&
+    dt.getDate() === dia
+  );
+}
+
 /** Valida CPF pelo dígito verificador (rejeita sequências repetidas). */
 export const validarCpf = cpfValido;
 

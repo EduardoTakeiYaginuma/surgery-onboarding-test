@@ -39,6 +39,11 @@ export interface PacienteUpdate {
   laser?: boolean;
   local?: string;
   localEndereco?: string | null;
+  /**
+     * Id do local de cirurgia escolhido da lista configurável. Quando vier `local` como texto livre sem `localId`, o backend cria um novo local e revincula. Re-snapshota os campos ricos do local no paciente.
+     * @nullable
+     */
+  localId?: number | null;
   equipeAnestesia?: string;
   /** Telefone da equipe de anestesia (texto livre, opcional). */
   equipeAnestesiaTelefone?: string | null;

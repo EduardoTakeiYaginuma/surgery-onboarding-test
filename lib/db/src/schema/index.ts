@@ -19,6 +19,7 @@
 
 export * from "./vendedoras";
 export * from "./medicos";
+export * from "./locais";
 export * from "./pacientes";
 export * from "./contrato-config";
 export * from "./config-documento-prompt";

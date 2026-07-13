@@ -9,10 +9,10 @@
 export interface PacienteCreate {
   nome: string;
   /**
-     * CPF da paciente (apenas dígitos, 11) — OPCIONAL; vazio quando ainda não se tem o CPF.
-     * @pattern ^(\d{11})?$
+     * CPF da paciente (apenas dígitos, 11) — OBRIGATÓRIO no cadastro.
+     * @pattern ^\d{11}$
      */
-  cpf?: string;
+  cpf: string;
   /**
      * Telefone/WhatsApp (apenas dígitos, 10 ou 11 com DDD).
      * @pattern ^\d{10,11}$
@@ -34,6 +34,11 @@ export interface PacienteCreate {
   local?: string;
   /** Endereço do local da cirurgia (texto livre, opcional). */
   localEndereco?: string | null;
+  /**
+     * Id do local de cirurgia escolhido da lista configurável (tabela `locais`). Quando omitido/null e `local` vier como texto livre, o backend cria um novo local com esse texto e vincula o id.
+     * @nullable
+     */
+  localId?: number | null;
   equipeAnestesia?: string;
   /** Telefone da equipe de anestesia (texto livre, opcional). */
   equipeAnestesiaTelefone?: string | null;
@@ -50,7 +55,7 @@ export interface PacienteCreate {
   twentyContactId?: string | null;
   /** RG da paciente (texto livre). Opcional. */
   rg?: string | null;
-  /** Data de nascimento (texto livre, ex. 15/05/1981). Opcional. */
+  /** Data de nascimento (texto livre, ex. 15/05/1981). Obrigatório no cadastro pelo Console; opcional na API para não quebrar outros clientes. */
   nascimento?: string | null;
   /** Endereço residencial completo da paciente (texto livre). Opcional. */
   endereco?: string | null;

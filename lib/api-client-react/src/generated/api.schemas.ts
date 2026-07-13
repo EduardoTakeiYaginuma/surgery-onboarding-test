@@ -338,6 +338,11 @@ export interface Paciente {
   clinica: string;
   local: string;
   localEndereco?: string | null;
+  /**
+     * Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.
+     * @nullable
+     */
+  localId?: number | null;
   equipeAnestesia: string;
   /** Telefone da equipe de anestesia (texto livre). null quando não informado. */
   equipeAnestesiaTelefone?: string | null;
@@ -450,10 +455,10 @@ export interface Paciente {
 export interface PacienteCreate {
   nome: string;
   /**
-     * CPF da paciente (apenas dígitos, 11) — OPCIONAL; vazio quando ainda não se tem o CPF.
-     * @pattern ^(\d{11})?$
+     * CPF da paciente (apenas dígitos, 11) — OBRIGATÓRIO no cadastro.
+     * @pattern ^\d{11}$
      */
-  cpf?: string;
+  cpf: string;
   /**
      * Telefone/WhatsApp (apenas dígitos, 10 ou 11 com DDD).
      * @pattern ^\d{10,11}$
@@ -475,6 +480,11 @@ export interface PacienteCreate {
   local?: string;
   /** Endereço do local da cirurgia (texto livre, opcional). */
   localEndereco?: string | null;
+  /**
+     * Id do local de cirurgia escolhido da lista configurável (tabela `locais`). Quando omitido/null e `local` vier como texto livre, o backend cria um novo local com esse texto e vincula o id.
+     * @nullable
+     */
+  localId?: number | null;
   equipeAnestesia?: string;
   /** Telefone da equipe de anestesia (texto livre, opcional). */
   equipeAnestesiaTelefone?: string | null;
@@ -491,7 +501,7 @@ export interface PacienteCreate {
   twentyContactId?: string | null;
   /** RG da paciente (texto livre). Opcional. */
   rg?: string | null;
-  /** Data de nascimento (texto livre, ex. 15/05/1981). Opcional. */
+  /** Data de nascimento (texto livre, ex. 15/05/1981). Obrigatório no cadastro pelo Console; opcional na API para não quebrar outros clientes. */
   nascimento?: string | null;
   /** Endereço residencial completo da paciente (texto livre). Opcional. */
   endereco?: string | null;
@@ -531,6 +541,11 @@ export interface PacienteUpdate {
   laser?: boolean;
   local?: string;
   localEndereco?: string | null;
+  /**
+     * Id do local de cirurgia escolhido da lista configurável. Quando vier `local` como texto livre sem `localId`, o backend cria um novo local e revincula. Re-snapshota os campos ricos do local no paciente.
+     * @nullable
+     */
+  localId?: number | null;
   equipeAnestesia?: string;
   /** Telefone da equipe de anestesia (texto livre, opcional). */
   equipeAnestesiaTelefone?: string | null;
@@ -759,6 +774,8 @@ export interface ResumoConsole {
 }
 
 export interface HospitalOption {
+  /** Id do local na tabela configurável `locais` (usado para vincular o paciente por `localId`). */
+  id: number;
   chave: string;
   nome: string;
   /** Nome completo da instituição, igual ao que a página da paciente mostra. */
@@ -1264,6 +1281,54 @@ export interface VendedoraUpdate {
   ativo?: boolean;
 }
 
+/**
+ * Local de cirurgia (hospital) configurável pela equipe.
+ */
+export interface Local {
+  id: number;
+  /** Nome curto para exibição e seletores. */
+  nome: string;
+  /** Nome completo da instituição (mensagens e página da paciente). */
+  nomeCompleto: string;
+  endereco: string;
+  /** Nome do contato do Centro Cirúrgico. */
+  contatoCcNome: string;
+  contatoCcTelefone: string;
+  /** Instruções/janela de chegada específicas do local. */
+  instrucoesChegada: string;
+  /**
+     * Valor de sinal sugerido para pré-preencher o formulário (null = sem sugestão).
+     * @nullable
+     */
+  sinalSugerido: number | null;
+  ativo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LocalCreate {
+  nome: string;
+  nomeCompleto?: string;
+  endereco?: string;
+  contatoCcNome?: string;
+  contatoCcTelefone?: string;
+  instrucoesChegada?: string;
+  /** @nullable */
+  sinalSugerido?: number | null;
+}
+
+export interface LocalUpdate {
+  nome?: string;
+  nomeCompleto?: string;
+  endereco?: string;
+  contatoCcNome?: string;
+  contatoCcTelefone?: string;
+  instrucoesChegada?: string;
+  /** @nullable */
+  sinalSugerido?: number | null;
+  ativo?: boolean;
+}
+
 export interface TimelineEvento {
   id: number;
   pacienteId: number;
@@ -1727,5 +1792,9 @@ incluirInativos?: boolean;
 
 export type ListarVendedorasParams = {
 incluirInativas?: boolean;
+};
+
+export type ListarLocaisParams = {
+incluirInativos?: boolean;
 };
 

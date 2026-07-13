@@ -54,8 +54,12 @@ import type {
   HistoricoEdicao,
   LembreteCreate,
   ListarContratoModelosParams,
+  ListarLocaisParams,
   ListarMedicosParams,
   ListarVendedorasParams,
+  Local,
+  LocalCreate,
+  LocalUpdate,
   MarcoManualEntrada,
   Medico,
   MedicoCreate,
@@ -4415,6 +4419,303 @@ export const useAtualizarVendedora = <TError = ErrorType<Erro>,
         TContext
       > => {
       return useMutation(getAtualizarVendedoraMutationOptions(options));
+    }
+
+export const getListarLocaisUrl = (params?: ListarLocaisParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/locais?${stringifiedParams}` : `/api/locais`
+}
+
+/**
+ * Lista os locais de cirurgia (hospitais) configuráveis. Por padrão só os ativos.
+ * @summary Listar locais de cirurgia
+ */
+export const listarLocais = async (params?: ListarLocaisParams, options?: RequestInit): Promise<Local[]> => {
+
+  return customFetch<Local[]>(getListarLocaisUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListarLocaisQueryKey = (params?: ListarLocaisParams,) => {
+    return [
+    `/api/locais`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListarLocaisQueryOptions = <TData = Awaited<ReturnType<typeof listarLocais>>, TError = ErrorType<unknown>>(params?: ListarLocaisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listarLocais>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarLocaisQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarLocais>>> = ({ signal }) => listarLocais(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarLocais>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListarLocaisQueryResult = NonNullable<Awaited<ReturnType<typeof listarLocais>>>
+export type ListarLocaisQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Listar locais de cirurgia
+ */
+
+export function useListarLocais<TData = Awaited<ReturnType<typeof listarLocais>>, TError = ErrorType<unknown>>(
+ params?: ListarLocaisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listarLocais>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListarLocaisQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCriarLocalUrl = () => {
+
+
+
+
+  return `/api/locais`
+}
+
+/**
+ * @summary Cadastrar local de cirurgia
+ */
+export const criarLocal = async (localCreate: LocalCreate, options?: RequestInit): Promise<Local> => {
+
+  return customFetch<Local>(getCriarLocalUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(localCreate)
+  }
+);}
+
+
+
+
+export const getCriarLocalMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof criarLocal>>, TError,{data: BodyType<LocalCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof criarLocal>>, TError,{data: BodyType<LocalCreate>}, TContext> => {
+
+const mutationKey = ['criarLocal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof criarLocal>>, {data: BodyType<LocalCreate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  criarLocal(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CriarLocalMutationResult = NonNullable<Awaited<ReturnType<typeof criarLocal>>>
+    export type CriarLocalMutationBody = BodyType<LocalCreate>
+    export type CriarLocalMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Cadastrar local de cirurgia
+ */
+export const useCriarLocal = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof criarLocal>>, TError,{data: BodyType<LocalCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof criarLocal>>,
+        TError,
+        {data: BodyType<LocalCreate>},
+        TContext
+      > => {
+      return useMutation(getCriarLocalMutationOptions(options));
+    }
+
+export const getAtualizarLocalUrl = (id: number,) => {
+
+
+
+
+  return `/api/locais/${id}`
+}
+
+/**
+ * @summary Editar ou desativar local de cirurgia
+ */
+export const atualizarLocal = async (id: number,
+    localUpdate: LocalUpdate, options?: RequestInit): Promise<Local> => {
+
+  return customFetch<Local>(getAtualizarLocalUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(localUpdate)
+  }
+);}
+
+
+
+
+export const getAtualizarLocalMutationOptions = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof atualizarLocal>>, TError,{id: number;data: BodyType<LocalUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof atualizarLocal>>, TError,{id: number;data: BodyType<LocalUpdate>}, TContext> => {
+
+const mutationKey = ['atualizarLocal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof atualizarLocal>>, {id: number;data: BodyType<LocalUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  atualizarLocal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AtualizarLocalMutationResult = NonNullable<Awaited<ReturnType<typeof atualizarLocal>>>
+    export type AtualizarLocalMutationBody = BodyType<LocalUpdate>
+    export type AtualizarLocalMutationError = ErrorType<Erro>
+
+    /**
+ * @summary Editar ou desativar local de cirurgia
+ */
+export const useAtualizarLocal = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof atualizarLocal>>, TError,{id: number;data: BodyType<LocalUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof atualizarLocal>>,
+        TError,
+        {id: number;data: BodyType<LocalUpdate>},
+        TContext
+      > => {
+      return useMutation(getAtualizarLocalMutationOptions(options));
+    }
+
+export const getRemoverLocalUrl = (id: number,) => {
+
+
+
+
+  return `/api/locais/${id}`
+}
+
+/**
+ * Remove o local. Os pacientes que já o usaram mantêm o texto e o snapshot do local (o vínculo `localId` deles fica null). Prefira desativar (PATCH ativo=false) quando quiser apenas tirá-lo dos seletores.
+ * @summary Remover local de cirurgia
+ */
+export const removerLocal = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getRemoverLocalUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getRemoverLocalMutationOptions = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removerLocal>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removerLocal>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['removerLocal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removerLocal>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  removerLocal(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoverLocalMutationResult = NonNullable<Awaited<ReturnType<typeof removerLocal>>>
+
+    export type RemoverLocalMutationError = ErrorType<Erro>
+
+    /**
+ * @summary Remover local de cirurgia
+ */
+export const useRemoverLocal = <TError = ErrorType<Erro>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removerLocal>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removerLocal>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRemoverLocalMutationOptions(options));
     }
 
 export const getObterPaginaPacienteUrl = (token: string,) => {

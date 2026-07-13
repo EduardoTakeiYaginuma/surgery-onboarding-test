@@ -126,7 +126,12 @@ import {
   descreverEvento,
   ehTipoEvento,
 } from "../lib/saidas";
-import { HOSPITAIS, PROCEDIMENTO_TEMPLATES, localTexto } from "../lib/protocolo";
+import {
+  PROCEDIMENTO_TEMPLATES,
+  localTexto,
+  perfilDeLocal,
+} from "../lib/protocolo";
+import { locaisRepo, resolverLocalDoCadastro } from "../lib/locais-repo";
 import { instrucoesChegadaTexto } from "../lib/conteudo-padrao";
 import { extrairDocumentoId, listarAssinaturasContrato } from "../lib/autentique";
 import { refrescarStatusContrato, processarAlertasPrazo } from "../lib/contrato";
@@ -311,21 +316,28 @@ router.get("/pacientes/resumo", async (_req, res): Promise<void> => {
 });
 
 router.get("/config", async (_req, res): Promise<void> => {
-  const [temaPadrao, { prazoAssinaturaDiasAntes, vencimentoSaldoDiasUteisAntes }] =
+  const [temaPadrao, { prazoAssinaturaDiasAntes, vencimentoSaldoDiasUteisAntes }, locais] =
     await Promise.all([
       conteudoRepo.obterTemaPadrao(),
       contratoConfigRepo.obter(),
+      locaisRepo.listar(),
     ]);
   res.json(
     ObterConfigResponse.parse({
-      hospitais: HOSPITAIS.map((h) => ({
-        chave: h.chave,
-        nome: h.nome,
-        nomeCompleto: h.nomeCompleto,
-        local: localTexto(h),
-        instrucoesChegada: instrucoesChegadaTexto(h),
-        ...(h.sinalSugerido != null ? { sinalSugerido: h.sinalSugerido } : {}),
-      })),
+      // Locais de cirurgia vêm da tabela configurável `locais` (antes era uma
+      // constante fixa). `id` permite ao Console vincular o paciente por localId.
+      hospitais: locais.map((l) => {
+        const h = perfilDeLocal(l);
+        return {
+          id: l.id,
+          chave: h.chave,
+          nome: h.nome,
+          nomeCompleto: h.nomeCompleto,
+          local: localTexto(h),
+          instrucoesChegada: instrucoesChegadaTexto(h),
+          ...(h.sinalSugerido != null ? { sinalSugerido: h.sinalSugerido } : {}),
+        };
+      }),
       procedimentos: PROCEDIMENTO_TEMPLATES.map((p) => ({
         chave: p.chave,
         nome: p.nome,
@@ -665,6 +677,25 @@ router.post("/pacientes", async (req, res): Promise<void> => {
       ? diasUteisAntes(parsed.data.dataCirurgia, config.vencimentoSaldoDiasUteisAntes)
       : (parsed.data.dataPagamentoPendente ?? null);
 
+  // Local de cirurgia: escolhido da lista (localId) ou texto livre (que cria um
+  // novo local). O snapshot preserva os campos do local usados nas mensagens.
+  const localRow = await resolverLocalDoCadastro(
+    parsed.data.localId,
+    parsed.data.local,
+    parsed.data.localEndereco,
+  );
+  const localCampos: Partial<InsertPaciente> = localRow
+    ? {
+        local: localRow.nome,
+        localEndereco: localRow.endereco || null,
+        localId: localRow.id,
+        localSnapshot: perfilDeLocal(localRow),
+      }
+    : {
+        local: parsed.data.local,
+        localEndereco: parsed.data.localEndereco?.trim() || null,
+      };
+
   const paciente = await pacientesRepo.criar({
     nome: parsed.data.nome,
     cpf,
@@ -676,8 +707,7 @@ router.post("/pacientes", async (req, res): Promise<void> => {
     valorPendente: String(parsed.data.valorPendente),
     dataPagamentoPendente: vencimentoPost,
     laser: parsed.data.laser,
-    local: parsed.data.local,
-    localEndereco: parsed.data.localEndereco?.trim() || null,
+    ...localCampos,
     equipeAnestesia: parsed.data.equipeAnestesia,
     equipeAnestesiaTelefone: parsed.data.equipeAnestesiaTelefone?.trim() || null,
     vendedoraId: parsed.data.vendedoraId ?? null,
@@ -797,8 +827,35 @@ router.patch("/pacientes/:id", async (req, res): Promise<void> => {
     rg,
     nascimento,
     endereco,
+    local,
+    localEndereco,
+    localId,
     ...resto
   } = parsed.data;
+
+  // Local de cirurgia: se veio um localId ou um novo texto de local, re-resolve
+  // (reusa/cria o local) e re-snapshota. Caso contrário, não mexe no vínculo.
+  let localCampos: Partial<InsertPaciente> = {};
+  if (localId !== undefined || local !== undefined) {
+    const localRow = await resolverLocalDoCadastro(
+      localId,
+      local ?? anterior.local,
+      localEndereco !== undefined ? localEndereco : anterior.localEndereco,
+    );
+    localCampos = localRow
+      ? {
+          local: localRow.nome,
+          localEndereco: localRow.endereco || null,
+          localId: localRow.id,
+          localSnapshot: perfilDeLocal(localRow),
+        }
+      : {
+          ...(local !== undefined ? { local } : {}),
+          ...(localEndereco !== undefined
+            ? { localEndereco: localEndereco?.trim() || null }
+            : {}),
+        };
+  }
 
   // Identidade vinda do contato do Twenty: o e-mail e o vínculo (twentyContactId)
   // chegam quando a equipe troca o paciente pela busca no Twenty no editor.
@@ -932,6 +989,7 @@ router.patch("/pacientes/:id", async (req, res): Promise<void> => {
         }
       : {}),
     ...medicoCampos,
+    ...localCampos,
     ...camposContato,
     ...resetAlerta,
     ...camposContrato,

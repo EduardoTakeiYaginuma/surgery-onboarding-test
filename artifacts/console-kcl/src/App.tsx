@@ -20,6 +20,7 @@ const ConsoleContratoModelos = lazy(
 );
 const ConsoleDocumentos = lazy(() => import("@/pages/console-documentos"));
 const ConsolePrompts = lazy(() => import("@/pages/console-prompts"));
+const ConsoleLocais = lazy(() => import("@/pages/console-locais"));
 const PublicPatient = lazy(() => import("@/pages/public-patient"));
 
 const queryClient = new QueryClient({
@@ -56,6 +57,7 @@ function ConsoleRoutes() {
           <Route path="/contrato-modelos" component={ConsoleContratoModelos} />
           <Route path="/documentos" component={ConsoleDocumentos} />
           <Route path="/prompts" component={ConsolePrompts} />
+          <Route path="/locais" component={ConsoleLocais} />
           <Route path="/paciente/:id" component={ConsolePatient} />
           <Route component={NotFound} />
         </Switch>

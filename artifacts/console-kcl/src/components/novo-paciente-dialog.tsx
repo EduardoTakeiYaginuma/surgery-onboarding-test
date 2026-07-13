@@ -76,6 +76,8 @@ import {
   validarTelefone,
   formatarCpf,
   formatarTelefone,
+  formatarData,
+  dataBrCompleta,
 } from "@/lib/br-validacao";
 import { toastErroAcao } from "@/lib/erro-acao";
 import { useToast } from "@/hooks/use-toast";
@@ -86,6 +88,9 @@ import { DADOS_PREVIEW_EXEMPLO, type DadosPreview } from "@/lib/secoes-preview";
 
 export const SEM_VENDEDORA = "__nenhuma__";
 export const SEM_MEDICO = "__sem_medico__";
+// Opção "digitar um local novo" no seletor de hospital (texto livre → cria um
+// novo local no backend). Distingue-se de um id de local da lista.
+export const LOCAL_LIVRE = "__local_livre__";
 
 /** Formata bytes de forma curta (B / KB / MB) para o rótulo do arquivo. */
 function formatarTamanhoArquivo(bytes: number): string {
@@ -117,14 +122,12 @@ export const InfoHint = ({ children }: { children: React.ReactNode }) => (
 
 export const formSchema = z.object({
   nome: z.string().min(1, "Informe o nome completo da paciente."),
-  // CPF é opcional (o Twenty nem sempre tem). Vazio é aceito; se preenchido,
-  // precisa ser um CPF válido.
+  // CPF obrigatório no cadastro (pedido da equipe): precisa estar preenchido e
+  // ser um CPF válido.
   cpf: z
     .string()
-    .refine(
-      (v) => apenasDigitos(v).length === 0 || validarCpf(v),
-      "CPF inválido (confira os dígitos).",
-    ),
+    .refine((v) => apenasDigitos(v).length > 0, "Informe o CPF da paciente.")
+    .refine((v) => validarCpf(v), "CPF inválido (confira os dígitos)."),
   telefone: z
     .string()
     .refine((v) => apenasDigitos(v).length > 0, "Informe o telefone.")
@@ -141,6 +144,10 @@ export const formSchema = z.object({
   laser: z.boolean().default(false),
   local: z.string().min(1, "Informe o hospital / local da cirurgia."),
   localEndereco: z.string().default(""),
+  // Id do local escolhido da lista configurável ("" = texto livre, que cria um
+  // novo local no backend). O texto `local`/`localEndereco` continua servindo à
+  // prévia e ao cadastro livre.
+  localId: z.string().default(""),
   equipeAnestesia: z.string().min(1, "Informe a equipe de anestesia."),
   equipeAnestesiaTelefone: z.string().default(""),
   vendedoraId: z.string().default(SEM_VENDEDORA),
@@ -150,7 +157,13 @@ export const formSchema = z.object({
   twentyContactId: z.string().default(""),
   // Identidade complementar (opcional): não vêm do Twenty, digitados à mão.
   rg: z.string().default(""),
-  nascimento: z.string().default(""),
+  nascimento: z
+    .string()
+    .refine((v) => v.trim().length > 0, "Informe a data de nascimento.")
+    .refine(
+      (v) => v.trim() === "" || dataBrCompleta(v),
+      "Data inválida — use dd/mm/aaaa.",
+    ),
   endereco: z.string().default(""),
 }).refine((d) => !(d.valorPendente > 0) || d.dataPagamentoPendente.trim().length > 0, {
   path: ["dataPagamentoPendente"],
@@ -168,7 +181,7 @@ const ETAPAS = [
 ] as const;
 
 const CAMPOS_POR_ETAPA: (keyof FormValues)[][] = [
-  ["nome", "cpf", "telefone", "vendedoraId", "medicoId"],
+  ["nome", "cpf", "telefone", "nascimento", "vendedoraId", "medicoId"],
   ["local", "procedimentos", "dataCirurgia", "horario", "equipeAnestesia", "laser"],
   ["valorSinal", "valorPendente", "dataPagamentoPendente"],
 ];
@@ -181,6 +194,8 @@ const SELECT_TRIGGER_CLS = "bg-card border-transparent focus:ring-1 focus:ring-r
 const SELECT_CONTENT_CLS = "bg-background border-border text-foreground rounded-none";
 const SELECT_ITEM_CLS = "focus:bg-card focus:text-foreground rounded-none";
 const MSG_CLS = "font-mono text-xs text-red-400";
+// Rótulo miúdo dos campos dentro do card de detalhes do local escolhido.
+const DETALHE_LABEL_CLS = "text-muted-foreground/60 font-expanded text-[9px] tracking-widest uppercase mb-0.5";
 
 const HORAS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTOS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
@@ -513,7 +528,7 @@ function CamposPaciente({
         name="cpf"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className={LABEL_CLS}>CPF (opcional)</FormLabel>
+            <FormLabel className={LABEL_CLS}>CPF</FormLabel>
             <FormControl>
               <Input
                 inputMode="numeric"
@@ -571,9 +586,17 @@ function CamposPaciente({
         name="nascimento"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className={LABEL_CLS}>Data de nascimento (opcional)</FormLabel>
+            <FormLabel className={LABEL_CLS}>Data de nascimento</FormLabel>
             <FormControl>
-              <Input placeholder="dd/mm/aaaa" className={INPUT_CLS} {...field} />
+              <Input
+                inputMode="numeric"
+                placeholder="dd/mm/aaaa"
+                maxLength={10}
+                className={INPUT_CLS}
+                {...field}
+                value={formatarData(field.value)}
+                onChange={(e) => field.onChange(formatarData(e.target.value))}
+              />
             </FormControl>
             <FieldHint>Usada nos documentos (contrato/termo). Uso interno.</FieldHint>
             <FormMessage className={MSG_CLS} />
@@ -654,39 +677,136 @@ function CamposCirurgia({
     <>
       <FormField
         control={form.control}
-        name="local"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className={LABEL_CLS}>Hospital / Local</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Ex: Avant Moema Day Hospital"
-                className={INPUT_CLS}
-                {...field}
-              />
-            </FormControl>
-            <FieldHint>Onde a cirurgia será realizada. Texto livre — pode digitar qualquer local.</FieldHint>
-            <FormMessage className={MSG_CLS} />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="localEndereco"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className={LABEL_CLS}>Endereço do local</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Ex: Av. Copacabana, 112, 3º andar — Moema, São Paulo"
-                className={INPUT_CLS}
-                {...field}
-              />
-            </FormControl>
-            <FieldHint>Aparece na página da paciente e nas mensagens. Opcional.</FieldHint>
-            <FormMessage className={MSG_CLS} />
-          </FormItem>
-        )}
+        name="localId"
+        render={({ field }) => {
+          const hospitais = config?.hospitais ?? [];
+          const livre = field.value === "" || field.value === LOCAL_LIVRE;
+          return (
+            <FormItem>
+              <FormLabel className={LABEL_CLS}>Hospital / Local</FormLabel>
+              <Select
+                value={field.value === "" ? undefined : field.value}
+                onValueChange={(v) => {
+                  field.onChange(v);
+                  if (v === LOCAL_LIVRE) {
+                    // Texto livre: limpa para a equipe digitar o novo local.
+                    form.setValue("local", "", { shouldValidate: true });
+                    form.setValue("localEndereco", "");
+                  } else {
+                    // Local da lista: preenche o texto (prévia/exibição); o
+                    // endereço é resolvido no backend pelo id escolhido.
+                    const h = hospitais.find((x) => String(x.id) === v);
+                    form.setValue("local", h?.nome ?? "", { shouldValidate: true });
+                    form.setValue("localEndereco", "");
+                  }
+                }}
+              >
+                <FormControl>
+                  <SelectTrigger className={SELECT_TRIGGER_CLS}>
+                    <SelectValue placeholder="Selecione o hospital / local" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className={SELECT_CONTENT_CLS}>
+                  {hospitais.map((h) => (
+                    <SelectItem key={h.id} value={String(h.id)} className={SELECT_ITEM_CLS}>
+                      {h.nome}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={LOCAL_LIVRE} className={SELECT_ITEM_CLS}>
+                    Outro (digitar novo local)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FieldHint>
+                Escolha um local padrão ou "Outro" para digitar um novo — que fica
+                salvo para os próximos cadastros.
+              </FieldHint>
+              {!livre && (() => {
+                // Local da lista: exibe as infos atreladas ao id escolhido, não
+                // só o nome — endereço, instruções de chegada e sinal sugerido.
+                const sel = hospitais.find((x) => String(x.id) === field.value);
+                if (!sel) return null;
+                // `local` vem como "Nome Completo — Endereço"; isolamos o endereço.
+                const partes = sel.local.split(" — ");
+                const endereco = partes.length > 1 ? partes.slice(1).join(" — ") : "";
+                return (
+                  <div className="mt-3 border-l border-accent/40 bg-card/60 px-4 py-3 space-y-2.5">
+                    <p className="font-light text-sm text-foreground leading-snug">
+                      {sel.nomeCompleto || sel.nome}
+                    </p>
+                    {endereco && (
+                      <div>
+                        <p className={DETALHE_LABEL_CLS}>Endereço</p>
+                        <p className="font-light text-xs text-muted-foreground leading-relaxed">
+                          {endereco}
+                        </p>
+                      </div>
+                    )}
+                    {sel.instrucoesChegada && (
+                      <div>
+                        <p className={DETALHE_LABEL_CLS}>Instruções de chegada</p>
+                        <p className="font-light text-xs text-muted-foreground leading-relaxed">
+                          {sel.instrucoesChegada}
+                        </p>
+                      </div>
+                    )}
+                    {sel.sinalSugerido != null && (
+                      <div>
+                        <p className={DETALHE_LABEL_CLS}>Sinal sugerido</p>
+                        <p className="font-mono text-xs text-accent">
+                          {sel.sinalSugerido.toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              {livre && (
+                <div className="space-y-3 pt-2">
+                  <FormField
+                    control={form.control}
+                    name="local"
+                    render={({ field: lf }) => (
+                      <FormItem>
+                        <FormLabel className={LABEL_CLS}>Nome do local</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Avant Moema Day Hospital"
+                            className={INPUT_CLS}
+                            {...lf}
+                          />
+                        </FormControl>
+                        <FormMessage className={MSG_CLS} />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="localEndereco"
+                    render={({ field: ef }) => (
+                      <FormItem>
+                        <FormLabel className={LABEL_CLS}>Endereço do local</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Av. Copacabana, 112, 3º andar — Moema, São Paulo"
+                            className={INPUT_CLS}
+                            {...ef}
+                          />
+                        </FormControl>
+                        <FieldHint>Aparece na página da paciente e nas mensagens.</FieldHint>
+                        <FormMessage className={MSG_CLS} />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+              <FormMessage className={MSG_CLS} />
+            </FormItem>
+          );
+        }}
       />
       <FormField
         control={form.control}
@@ -991,6 +1111,7 @@ export function NovoPacienteDialog({
       laser: false,
       local: "",
       localEndereco: "",
+      localId: "",
       // Texto livre: pré-preenche com a equipe usada hoje (a secretária edita se mudar).
       equipeAnestesia: "Zenicare",
       equipeAnestesiaTelefone: "(11) 95080-2525",
@@ -1075,7 +1196,7 @@ export function NovoPacienteDialog({
   // `permitirCpfArquivado` força a criação de um novo cadastro mesmo havendo um
   // arquivado com o mesmo CPF (paciente que voltou para um novo procedimento).
   function submeterCadastro(values: FormValues, permitirCpfArquivado = false) {
-    const { vendedoraId, medicoId, ...resto } = values;
+    const { vendedoraId, medicoId, localId, ...resto } = values;
     const temPendente = values.valorPendente > 0;
     criarPaciente.mutate(
       {
@@ -1086,6 +1207,10 @@ export function NovoPacienteDialog({
             temPendente && values.dataPagamentoPendente ? values.dataPagamentoPendente : null,
           vendedoraId: vendedoraId === SEM_VENDEDORA ? null : Number(vendedoraId),
           medicoId: medicoId === SEM_MEDICO ? null : Number(medicoId),
+          // Local escolhido da lista → id; "Outro"/texto livre → null (backend
+          // cria o local a partir do texto em `local`/`localEndereco`).
+          localId:
+            localId && localId !== LOCAL_LIVRE ? Number(localId) : null,
         },
       },
       {

@@ -46,6 +46,11 @@ export interface Paciente {
   clinica: string;
   local: string;
   localEndereco?: string | null;
+  /**
+     * Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.
+     * @nullable
+     */
+  localId?: number | null;
   equipeAnestesia: string;
   /** Telefone da equipe de anestesia (texto livre). null quando não informado. */
   equipeAnestesiaTelefone?: string | null;

@@ -4,6 +4,8 @@ import {
   contatoTelefoneIncompleto,
   validarTelefone,
   validarCpf,
+  formatarData,
+  dataBrCompleta,
 } from "./br-validacao";
 
 // Corpus compartilhado: o Console (reexportando @workspace/br-validacao) precisa
@@ -21,6 +23,39 @@ describe("br-validacao: corpus compartilhado (Console)", () => {
       expect(validarTelefone(caso.entrada)).toBe(caso.valido);
     },
   );
+});
+
+describe("formatarData (máscara dd/mm/aaaa)", () => {
+  it.each([
+    ["", ""],
+    ["1", "1"],
+    ["15", "15"],
+    ["150", "15/0"],
+    ["1505", "15/05"],
+    ["15051", "15/05/1"],
+    ["15051981", "15/05/1981"],
+    // Descarta dígitos além de 8 e ignora não-dígitos digitados.
+    ["150519811", "15/05/1981"],
+    ["15/05/1981", "15/05/1981"],
+    ["ab15cd05ef1981", "15/05/1981"],
+  ])("formatarData(%j) === %j", (entrada, esperado) => {
+    expect(formatarData(entrada)).toBe(esperado);
+  });
+});
+
+describe("dataBrCompleta", () => {
+  it.each([
+    ["15/05/1981", true],
+    ["29/02/2024", true], // ano bissexto
+    ["29/02/2023", false], // não bissexto
+    ["31/04/2020", false], // abril não tem 31
+    ["00/01/2000", false],
+    ["15/13/2000", false],
+    ["15/05/19", false], // incompleto
+    ["", false],
+  ])("dataBrCompleta(%j) === %j", (entrada, esperado) => {
+    expect(dataBrCompleta(entrada)).toBe(esperado);
+  });
 });
 
 describe("contatoTelefoneIncompleto", () => {

@@ -49,6 +49,7 @@ export const ListarPacientesResponseItem = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -97,7 +98,7 @@ export const ListarPacientesResponse = zod.array(ListarPacientesResponseItem)
  * Cria um novo paciente no estágio Fechamento e gera o token público.
  * @summary Criar paciente
  */
-export const criarPacienteBodyCpfRegExp = new RegExp('^(\\d{11})?$');
+export const criarPacienteBodyCpfRegExp = new RegExp('^\\d{11}$');
 export const criarPacienteBodyTelefoneRegExp = new RegExp('^\\d{10,11}$');
 
 export const criarPacienteBodyHorarioDefault = `06:00`;
@@ -109,7 +110,7 @@ export const criarPacienteBodyPermitirCpfArquivadoDefault = false;
 
 export const CriarPacienteBody = zod.object({
   "nome": zod.string(),
-  "cpf": zod.string().regex(criarPacienteBodyCpfRegExp).optional().describe('CPF da paciente (apenas dígitos, 11) — OPCIONAL; vazio quando ainda não se tem o CPF.'),
+  "cpf": zod.string().regex(criarPacienteBodyCpfRegExp).describe('CPF da paciente (apenas dígitos, 11) — OBRIGATÓRIO no cadastro.'),
   "telefone": zod.string().regex(criarPacienteBodyTelefoneRegExp).describe('Telefone\/WhatsApp (apenas dígitos, 10 ou 11 com DDD).'),
   "procedimentos": zod.array(zod.string()).min(1),
   "dataCirurgia": zod.string().describe('Data da cirurgia (YYYY-MM-DD)'),
@@ -120,6 +121,7 @@ export const CriarPacienteBody = zod.object({
   "laser": zod.boolean().default(criarPacienteBodyLaserDefault),
   "local": zod.string().default(criarPacienteBodyLocalDefault).describe('Hospital\/local da cirurgia (texto livre).'),
   "localEndereco": zod.string().nullish().describe('Endereço do local da cirurgia (texto livre, opcional).'),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia escolhido da lista configurável (tabela `locais`). Quando omitido\/null e `local` vier como texto livre, o backend cria um novo local com esse texto e vincula o id.'),
   "equipeAnestesia": zod.string().default(criarPacienteBodyEquipeAnestesiaDefault),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre, opcional).'),
   "vendedoraId": zod.number().nullish(),
@@ -127,7 +129,7 @@ export const CriarPacienteBody = zod.object({
   "email": zod.string().nullish().describe('E-mail da paciente (opcional). Puxado do contato do Twenty quando disponível; habilita entrega de assinatura por e-mail.'),
   "twentyContactId": zod.string().nullish().describe('Id do contato (People) no Twenty. Vincula a ficha a uma pessoa REAL do CRM quando cadastrada a partir da busca.'),
   "rg": zod.string().nullish().describe('RG da paciente (texto livre). Opcional.'),
-  "nascimento": zod.string().nullish().describe('Data de nascimento (texto livre, ex. 15\/05\/1981). Opcional.'),
+  "nascimento": zod.string().nullish().describe('Data de nascimento (texto livre, ex. 15\/05\/1981). Obrigatório no cadastro pelo Console; opcional na API para não quebrar outros clientes.'),
   "endereco": zod.string().nullish().describe('Endereço residencial completo da paciente (texto livre). Opcional.'),
   "permitirCpfArquivado": zod.boolean().default(criarPacienteBodyPermitirCpfArquivadoDefault).describe('Quando true, autoriza criar um novo cadastro mesmo que exista um cadastro ARQUIVADO com o mesmo CPF (paciente que voltou para um novo procedimento). Não afeta o bloqueio contra cadastros ativos.')
 })
@@ -161,6 +163,7 @@ export const CriarPacienteResponse = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -249,6 +252,7 @@ export const obterConfigResponseVencimentoSaldoDiasUteisAntesMin = 0;
 
 export const ObterConfigResponse = zod.object({
   "hospitais": zod.array(zod.object({
+  "id": zod.number().describe('Id do local na tabela configurável `locais` (usado para vincular o paciente por `localId`).'),
   "chave": zod.string(),
   "nome": zod.string(),
   "nomeCompleto": zod.string().describe('Nome completo da instituição, igual ao que a página da paciente mostra.'),
@@ -1753,6 +1757,7 @@ export const ObterPacienteResponse = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -1842,6 +1847,7 @@ export const AtualizarPacienteBody = zod.object({
   "laser": zod.boolean().optional(),
   "local": zod.string().optional(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia escolhido da lista configurável. Quando vier `local` como texto livre sem `localId`, o backend cria um novo local e revincula. Re-snapshota os campos ricos do local no paciente.'),
   "equipeAnestesia": zod.string().optional(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre, opcional).'),
   "medica": zod.string().optional(),
@@ -1888,6 +1894,7 @@ export const AtualizarPacienteResponse = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -2005,6 +2012,7 @@ export const AprovarPacienteResponse = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -2107,6 +2115,7 @@ export const MarcarMarcoManualResponse = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -2198,6 +2207,7 @@ export const ListarPacientesArquivadosResponseItem = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -2279,6 +2289,7 @@ export const ArquivarPacienteResponse = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -2397,6 +2408,7 @@ export const RestaurarPacienteResponse = zod.object({
   "clinica": zod.string(),
   "local": zod.string(),
   "localEndereco": zod.string().nullish(),
+  "localId": zod.number().nullish().describe('Id do local de cirurgia vinculado (tabela `locais`). null em cadastros antigos sem vínculo.'),
   "equipeAnestesia": zod.string(),
   "equipeAnestesiaTelefone": zod.string().nullish().describe('Telefone da equipe de anestesia (texto livre). null quando não informado.'),
   "estagio": zod.enum(['Fechamento', 'Enviado', 'Véspera', 'Cirurgia']),
@@ -2797,6 +2809,102 @@ export const AtualizarVendedoraResponse = zod.object({
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
+
+
+/**
+ * Lista os locais de cirurgia (hospitais) configuráveis. Por padrão só os ativos.
+ * @summary Listar locais de cirurgia
+ */
+export const ListarLocaisQueryParams = zod.object({
+  "incluirInativos": zod.coerce.boolean().optional()
+})
+
+export const ListarLocaisResponseItem = zod.object({
+  "id": zod.number(),
+  "nome": zod.string().describe('Nome curto para exibição e seletores.'),
+  "nomeCompleto": zod.string().describe('Nome completo da instituição (mensagens e página da paciente).'),
+  "endereco": zod.string(),
+  "contatoCcNome": zod.string().describe('Nome do contato do Centro Cirúrgico.'),
+  "contatoCcTelefone": zod.string(),
+  "instrucoesChegada": zod.string().describe('Instruções\/janela de chegada específicas do local.'),
+  "sinalSugerido": zod.number().nullable().describe('Valor de sinal sugerido para pré-preencher o formulário (null = sem sugestão).'),
+  "ativo": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).describe('Local de cirurgia (hospital) configurável pela equipe.')
+export const ListarLocaisResponse = zod.array(ListarLocaisResponseItem)
+
+
+/**
+ * @summary Cadastrar local de cirurgia
+ */
+export const CriarLocalBody = zod.object({
+  "nome": zod.string(),
+  "nomeCompleto": zod.string().optional(),
+  "endereco": zod.string().optional(),
+  "contatoCcNome": zod.string().optional(),
+  "contatoCcTelefone": zod.string().optional(),
+  "instrucoesChegada": zod.string().optional(),
+  "sinalSugerido": zod.number().nullish()
+})
+
+export const CriarLocalResponse = zod.object({
+  "id": zod.number(),
+  "nome": zod.string().describe('Nome curto para exibição e seletores.'),
+  "nomeCompleto": zod.string().describe('Nome completo da instituição (mensagens e página da paciente).'),
+  "endereco": zod.string(),
+  "contatoCcNome": zod.string().describe('Nome do contato do Centro Cirúrgico.'),
+  "contatoCcTelefone": zod.string(),
+  "instrucoesChegada": zod.string().describe('Instruções\/janela de chegada específicas do local.'),
+  "sinalSugerido": zod.number().nullable().describe('Valor de sinal sugerido para pré-preencher o formulário (null = sem sugestão).'),
+  "ativo": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).describe('Local de cirurgia (hospital) configurável pela equipe.')
+
+
+/**
+ * @summary Editar ou desativar local de cirurgia
+ */
+export const AtualizarLocalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AtualizarLocalBody = zod.object({
+  "nome": zod.string().optional(),
+  "nomeCompleto": zod.string().optional(),
+  "endereco": zod.string().optional(),
+  "contatoCcNome": zod.string().optional(),
+  "contatoCcTelefone": zod.string().optional(),
+  "instrucoesChegada": zod.string().optional(),
+  "sinalSugerido": zod.number().nullish(),
+  "ativo": zod.boolean().optional()
+})
+
+export const AtualizarLocalResponse = zod.object({
+  "id": zod.number(),
+  "nome": zod.string().describe('Nome curto para exibição e seletores.'),
+  "nomeCompleto": zod.string().describe('Nome completo da instituição (mensagens e página da paciente).'),
+  "endereco": zod.string(),
+  "contatoCcNome": zod.string().describe('Nome do contato do Centro Cirúrgico.'),
+  "contatoCcTelefone": zod.string(),
+  "instrucoesChegada": zod.string().describe('Instruções\/janela de chegada específicas do local.'),
+  "sinalSugerido": zod.number().nullable().describe('Valor de sinal sugerido para pré-preencher o formulário (null = sem sugestão).'),
+  "ativo": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).describe('Local de cirurgia (hospital) configurável pela equipe.')
+
+
+/**
+ * Remove o local. Os pacientes que já o usaram mantêm o texto e o snapshot do local (o vínculo `localId` deles fica null). Prefira desativar (PATCH ativo=false) quando quiser apenas tirá-lo dos seletores.
+ * @summary Remover local de cirurgia
+ */
+export const RemoverLocalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RemoverLocalResponse = zod.void()
 
 
 /**

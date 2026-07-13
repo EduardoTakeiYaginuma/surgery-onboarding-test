@@ -7,6 +7,8 @@
  */
 
 export interface HospitalOption {
+  /** Id do local na tabela configurável `locais` (usado para vincular o paciente por `localId`). */
+  id: number;
   chave: string;
   nome: string;
   /** Nome completo da instituição, igual ao que a página da paciente mostra. */

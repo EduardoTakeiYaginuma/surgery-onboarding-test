@@ -15,6 +15,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { vendedorasTable } from "./vendedoras";
 import { medicosTable } from "./medicos";
+import { locaisTable, type LocalSnapshot } from "./locais";
 import type { SecaoConteudo } from "./conteudo";
 
 export const pacientesTable = pgTable("pacientes", {
@@ -64,6 +65,18 @@ export const pacientesTable = pgTable("pacientes", {
   // Endereço do local da cirurgia, texto livre digitado no cadastro (antes vinha
   // da constante de hospitais). null/"" quando ainda não informado.
   localEndereco: text("local_endereco"),
+  // Vínculo com o local de cirurgia configurável (tabela `locais`). Preenchido
+  // quando a equipe escolhe um local da lista OU digita um novo (texto livre,
+  // que cria uma linha em `locais`). Os campos `local`/`localEndereco` acima
+  // continuam como texto de exibição/legado. null = cadastro antigo sem vínculo.
+  localId: integer("local_id").references(() => locaisTable.id, {
+    onDelete: "set null",
+  }),
+  // SNAPSHOT do local no momento do cadastro (contato do CC, instruções de
+  // chegada, etc.), na mesma linha dos snapshots de médico. Preserva o texto das
+  // mensagens mesmo que o local seja editado/desativado depois. null = cadastro
+  // antigo; a resolução cai no texto livre (perfilLocalDoPaciente).
+  localSnapshot: jsonb("local_snapshot").$type<LocalSnapshot>(),
   // Equipe de anestesia: texto livre digitado no cadastro (antes vinha de um
   // catálogo fixo de chaves). Nome e telefone são independentes por paciente.
   equipeAnestesia: text("equipe_anestesia").notNull().default("Zenicare"),
